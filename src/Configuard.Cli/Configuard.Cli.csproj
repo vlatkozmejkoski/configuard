@@ -13,6 +13,10 @@
     <Description>CLI for validating configuration contracts across environments.</Description>
     <PackageTags>config;validation;cli;dotnet-tool</PackageTags>
     <PackageReadmeFile>README-NUGET.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/vlatkozmejkoski/configuard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vlatkozmejkoski/configuard</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
