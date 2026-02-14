@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "environments": ["staging", "production"],
+  "sources": {
+    "appsettings": {
+      "base": "appsettings.json",
+      "environmentPattern": "appsettings.{env}.json"
+    }
+  },
+  "keys": [
+    {
+      "path": "ConnectionStrings:Default",
+      "type": "string",
+      "requiredIn": ["staging", "production"],
+      "constraints": {
+        "minLength": 20,
+        "pattern": "^Server=.+Database=.+;$"
+      }
+    },
+    {
+      "path": "Features:UseMockPayments",
+      "type": "bool",
+      "forbiddenIn": ["production"]
+    }
+  ]
+}

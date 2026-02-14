@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>configuard</ToolCommandName>
+    <PackageId>Configuard.Cli</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Configuard</Authors>
+    <Description>CLI for validating configuration contracts across environments.</Description>
+    <PackageTags>config;validation;cli;dotnet-tool</PackageTags>
+    <PackageReadmeFile>README-NUGET.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README-NUGET.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>
