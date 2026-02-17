@@ -798,7 +798,7 @@ This file captures incremental implementation decisions, with "what" and "why".
   - `docs/configuard/06-0.2x-stabilization.md`
   - defines pilot scope, feedback capture, stability gates, and patch-release policy
 - Added structured GitHub issue template:
-  - `.github/ISSUE_TEMPLATE/stabilization-feedback.yml`
+  - (later simplified to regular issues + label flow in Step 37)
   - captures command, exit code, expected/actual behavior, output snippet, and source context
 - Updated README doc links and project structure listing.
 
@@ -826,3 +826,30 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Ensures issue labeling is consistent and low-friction.
 - Speeds triage cycles by adding immediate structure to incoming stabilization reports.
+
+## Step 37: Remove dedicated stabilization issue template
+
+### What I changed
+
+- Removed `.github/ISSUE_TEMPLATE/stabilization-feedback.yml`.
+- Updated `docs/configuard/06-0.2x-stabilization.md` to use regular issues with `stabilization` label.
+
+### Why
+
+- Keeps contribution flow simpler while still preserving triage structure via labels and automation.
+
+## Step 38: De-scope stabilization ops scaffolding pre-major
+
+### What I changed
+
+- Removed stabilization-specific operational artifacts:
+  - `docs/configuard/06-0.2x-stabilization.md`
+  - `.github/workflows/stabilization-triage.yml`
+  - `.github/workflows/label-sync.yml`
+  - `.github/labels.yml`
+- Updated README to remove stabilization automation/doc references.
+
+### Why
+
+- Prioritized shipping feature work and product maturity before adding process overhead.
+- Keeps repository workflow minimal while pre-major development is still moving quickly.
