@@ -1110,3 +1110,22 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents silently ignored policy intent caused by typos or stale environment names in key rules.
 - Ensures policy lists are always aligned with the contract's declared environment universe.
+
+## Step 55: Enforce uniqueness in rule environment lists
+
+### What I changed
+
+- Extended `TryValidateRuleEnvironments(...)` in `ContractLoader` to reject duplicates within:
+  - `keys[].requiredIn`
+  - `keys[].forbiddenIn`
+  using trim + case-insensitive normalization.
+- Hardened required/forbidden overlap check to compare normalized environment values.
+- Added `ContractLoaderTests` for:
+  - duplicate values in `requiredIn`
+  - duplicate values in `forbiddenIn`
+  - overlap detection when one side includes extra whitespace
+
+### Why
+
+- Prevents redundant or ambiguous rule policy lists from being accepted.
+- Closes normalization gaps that could hide required/forbidden overlap bugs.

@@ -560,4 +560,119 @@ public sealed class ContractLoaderTests
         }
     }
 
+    [Fact]
+    public void TryLoad_KeyRequiredInContainsDuplicatesAfterTrimAndCaseFold_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "production"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["staging", " Staging "]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("duplicate environment 'staging' in 'requiredIn'", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_KeyForbiddenInContainsDuplicatesAfterTrimAndCaseFold_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "production"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "forbiddenIn": ["production", " PRODUCTION "]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("duplicate environment 'PRODUCTION' in 'forbiddenIn'", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_KeyRequiredAndForbiddenOverlapAfterTrim_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "production"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": [" staging "],
+                  "forbiddenIn": ["staging"]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("both required and forbidden in environment 'staging'", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

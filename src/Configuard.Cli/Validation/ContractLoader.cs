@@ -166,11 +166,16 @@ internal static class ContractLoader
                 seenIdentifiers[canonicalAlias] = key.Path;
             }
 
+            var canonicalForbiddenEnvironments = new HashSet<string>(
+                key.ForbiddenIn.Select(environment => environment.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
             foreach (var env in key.RequiredIn)
             {
-                if (key.ForbiddenIn.Contains(env, StringComparer.OrdinalIgnoreCase))
+                var canonicalEnvironment = env.Trim();
+                if (canonicalForbiddenEnvironments.Contains(canonicalEnvironment))
                 {
-                    error = $"Key '{key.Path}' cannot be both required and forbidden in environment '{env}'.";
+                    error = $"Key '{key.Path}' cannot be both required and forbidden in environment '{canonicalEnvironment}'.";
                     return false;
                 }
             }
@@ -221,6 +226,7 @@ internal static class ContractLoader
         out string? error)
     {
         error = null;
+        var seenRuleEnvironments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var environment in ruleEnvironments)
         {
@@ -234,6 +240,12 @@ internal static class ContractLoader
             if (!declaredEnvironments.Contains(canonicalEnvironment))
             {
                 error = $"Key '{keyPath}' references undeclared environment '{canonicalEnvironment}' in '{propertyName}'.";
+                return false;
+            }
+
+            if (!seenRuleEnvironments.Add(canonicalEnvironment))
+            {
+                error = $"Key '{keyPath}' contains duplicate environment '{canonicalEnvironment}' in '{propertyName}'.";
                 return false;
             }
         }
