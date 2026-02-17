@@ -771,3 +771,21 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Makes explain output more actionable when debugging key resolution behavior.
 - Improves transparency for alias matching and source precedence decisions.
+
+## Step 34: Harden source and release policy for 0.2.0 baseline
+
+### What I changed
+
+- Finalized appsettings source strictness in resolver:
+  - `appsettings.base` is now required and missing file is a hard input error
+  - `appsettings.{env}.json` remains optional
+- Added command-level regression test:
+  - `Execute_ValidateMissingRequiredAppSettingsBase_ReturnsInputError`
+- Hardened release workflow:
+  - added explicit `NUGET_API_KEY` presence check before publish
+- Updated README + contract format docs to reflect the finalized behaviors.
+
+### Why
+
+- Prevents silent validations against incomplete source sets when the base appsettings input is absent.
+- Makes release pipeline failures explicit and easier to diagnose when repo secrets are not configured.

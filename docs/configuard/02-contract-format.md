@@ -99,6 +99,8 @@ For each environment:
 Source file strictness:
 
 - Parse/read failures for configured source files are treated as hard input errors.
+- `appsettings.base` is required and must exist for each evaluated command run.
+- Missing `appsettings.{env}.json` files are allowed (base-only resolution remains valid).
 - `dotenv.optional: false` requires both configured dotenv files (`base` and resolved `environmentPattern`) to exist.
 - `envSnapshot.optional: false` requires the resolved snapshot file to exist for each evaluated environment.
 

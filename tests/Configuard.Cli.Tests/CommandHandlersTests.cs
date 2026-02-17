@@ -572,6 +572,51 @@ public sealed class CommandHandlersTests
         }
     }
 
+    [Fact]
+    public void Execute_ValidateMissingRequiredAppSettingsBase_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["staging"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "validate",
+                ContractPath: contractPath,
+                Environments: ["staging"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static string EscapeJsonPath(string path) =>
         path.Replace("\\", "\\\\", StringComparison.Ordinal);
 

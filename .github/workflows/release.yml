@@ -46,6 +46,14 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version $VERSION"
 
+      - name: Validate NuGet secret
+        shell: bash
+        run: |
+          if [[ -z "${{ secrets.NUGET_API_KEY }}" ]]; then
+            echo "NUGET_API_KEY secret is missing."
+            exit 1
+          fi
+
       - name: Build
         run: dotnet build Configuard.sln -c Release
 

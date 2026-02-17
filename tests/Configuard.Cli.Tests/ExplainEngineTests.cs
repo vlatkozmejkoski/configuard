@@ -113,6 +113,7 @@ public sealed class ExplainEngineTests
         var tempDir = CreateTempDirectory();
         try
         {
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), "{}");
             File.WriteAllText(Path.Combine(tempDir, ".env.staging"), """
             API__KEY=from-dotenv
             """);
@@ -189,6 +190,7 @@ public sealed class ExplainEngineTests
         var tempDir = CreateTempDirectory();
         try
         {
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), "{}");
             var snapshotsDir = Path.Combine(tempDir, "snapshots");
             Directory.CreateDirectory(snapshotsDir);
             File.WriteAllText(Path.Combine(snapshotsDir, "staging.json"), """

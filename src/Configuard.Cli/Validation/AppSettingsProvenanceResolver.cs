@@ -26,6 +26,10 @@ internal static class AppSettingsProvenanceResolver
             {
                 LoadJsonInto(appSettingsValues, basePath);
             }
+            else
+            {
+                throw new InvalidOperationException($"Required appsettings source file not found: {basePath}");
+            }
 
             var envFileName = sources.AppSettings.EnvironmentPattern!.Replace("{env}", environment, StringComparison.OrdinalIgnoreCase);
             var envPath = Path.Combine(repoRoot, envFileName);
