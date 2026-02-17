@@ -853,3 +853,15 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prioritized shipping feature work and product maturity before adding process overhead.
 - Keeps repository workflow minimal while pre-major development is still moving quickly.
+
+## Step 39: Remove duplicate unused appsettings resolver
+
+### What I changed
+
+- Removed `src/Configuard.Cli/Validation/AppSettingsResolver.cs`.
+- Kept `AppSettingsProvenanceResolver` as the single source-loading implementation used by `validate`, `diff`, and `explain`.
+
+### Why
+
+- Eliminates duplicate loading/flattening logic that was not part of active execution paths.
+- Reduces maintenance drift risk and clarifies the canonical source-resolution path.
