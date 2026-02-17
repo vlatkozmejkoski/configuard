@@ -8,6 +8,15 @@ internal static class ContractLoader
     {
         PropertyNameCaseInsensitive = true
     };
+    private static readonly HashSet<string> SupportedTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "string",
+        "int",
+        "number",
+        "bool",
+        "object",
+        "array"
+    };
 
     public static bool TryLoad(string path, out ContractDocument? contract, out string? error)
     {
@@ -140,6 +149,11 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (!TryValidateKeyType(key.Path, key.Type, out error))
+            {
+                return false;
+            }
+
             if (seenIdentifiers.TryGetValue(canonicalPath, out var existingOwner))
             {
                 error = $"Duplicate key path or alias '{canonicalPath}' conflicts with '{existingOwner}'.";
@@ -186,6 +200,16 @@ internal static class ContractLoader
             }
 
             if (!TryValidateRuleEnvironments(key.Path, "forbiddenIn", key.ForbiddenIn, declaredEnvironments, out error))
+            {
+                return false;
+            }
+
+            if (!TryValidateSourcePreference(key.Path, key.SourcePreference, out error))
+            {
+                return false;
+            }
+
+            if (!TryValidateConstraintSemantics(key.Path, key.Constraints, out error))
             {
                 return false;
             }
@@ -248,6 +272,187 @@ internal static class ContractLoader
                 error = $"Key '{keyPath}' contains duplicate environment '{canonicalEnvironment}' in '{propertyName}'.";
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateSourcePreference(
+        string keyPath,
+        IReadOnlyList<string> sourcePreference,
+        out string? error)
+    {
+        error = null;
+        var seenSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var source in sourcePreference)
+        {
+            var canonicalSource = source.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(canonicalSource))
+            {
+                error = $"Key '{keyPath}' contains an empty 'sourcePreference' entry.";
+                return false;
+            }
+
+            if (!SourceKinds.IsSupported(canonicalSource))
+            {
+                error = $"Key '{keyPath}' contains unsupported sourcePreference '{canonicalSource}'.";
+                return false;
+            }
+
+            if (!seenSources.Add(canonicalSource))
+            {
+                error = $"Key '{keyPath}' contains duplicate sourcePreference '{canonicalSource}'.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateKeyType(string keyPath, string keyType, out string? error)
+    {
+        error = null;
+        var canonicalType = keyType.Trim();
+        if (string.IsNullOrWhiteSpace(canonicalType))
+        {
+            error = $"Key '{keyPath}' must define a non-empty 'type'.";
+            return false;
+        }
+
+        if (!SupportedTypes.Contains(canonicalType))
+        {
+            error = $"Key '{keyPath}' has unsupported type '{canonicalType}'.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateConstraintSemantics(string keyPath, JsonElement constraints, out string? error)
+    {
+        error = null;
+        if (constraints.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (constraints.ValueKind != JsonValueKind.Object)
+        {
+            error = $"Key '{keyPath}' has invalid 'constraints' shape. Expected an object.";
+            return false;
+        }
+
+        if (!TryValidateBoundPair(keyPath, constraints, "minLength", "maxLength", integersOnly: true, out error))
+        {
+            return false;
+        }
+
+        if (!TryValidateNonNegativeIntegerConstraint(keyPath, constraints, "minLength", out error) ||
+            !TryValidateNonNegativeIntegerConstraint(keyPath, constraints, "maxLength", out error) ||
+            !TryValidateNonNegativeIntegerConstraint(keyPath, constraints, "minItems", out error) ||
+            !TryValidateNonNegativeIntegerConstraint(keyPath, constraints, "maxItems", out error))
+        {
+            return false;
+        }
+
+        if (!TryValidateBoundPair(keyPath, constraints, "minimum", "maximum", integersOnly: false, out error))
+        {
+            return false;
+        }
+
+        if (!TryValidateBoundPair(keyPath, constraints, "minItems", "maxItems", integersOnly: true, out error))
+        {
+            return false;
+        }
+
+        if (constraints.TryGetProperty("enum", out var enumElement))
+        {
+            if (enumElement.ValueKind != JsonValueKind.Array)
+            {
+                error = $"Key '{keyPath}' has invalid 'enum' constraint. Expected an array.";
+                return false;
+            }
+
+            if (enumElement.GetArrayLength() == 0)
+            {
+                error = $"Key '{keyPath}' has invalid 'enum' constraint. Array must not be empty.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateBoundPair(
+        string keyPath,
+        JsonElement constraints,
+        string minProperty,
+        string maxProperty,
+        bool integersOnly,
+        out string? error)
+    {
+        error = null;
+        if (!constraints.TryGetProperty(minProperty, out var minElement) ||
+            !constraints.TryGetProperty(maxProperty, out var maxElement))
+        {
+            return true;
+        }
+
+        if (integersOnly)
+        {
+            if (!minElement.TryGetInt32(out var minInt) || !maxElement.TryGetInt32(out var maxInt))
+            {
+                error = $"Key '{keyPath}' has non-integer '{minProperty}'/'{maxProperty}' values.";
+                return false;
+            }
+
+            if (minInt > maxInt)
+            {
+                error = $"Key '{keyPath}' has invalid constraints: '{minProperty}' cannot be greater than '{maxProperty}'.";
+                return false;
+            }
+
+            return true;
+        }
+
+        if (!minElement.TryGetDouble(out var minDouble) || !maxElement.TryGetDouble(out var maxDouble))
+        {
+            error = $"Key '{keyPath}' has non-numeric '{minProperty}'/'{maxProperty}' values.";
+            return false;
+        }
+
+        if (minDouble > maxDouble)
+        {
+            error = $"Key '{keyPath}' has invalid constraints: '{minProperty}' cannot be greater than '{maxProperty}'.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateNonNegativeIntegerConstraint(
+        string keyPath,
+        JsonElement constraints,
+        string propertyName,
+        out string? error)
+    {
+        error = null;
+        if (!constraints.TryGetProperty(propertyName, out var element))
+        {
+            return true;
+        }
+
+        if (!element.TryGetInt32(out var value))
+        {
+            error = $"Key '{keyPath}' has invalid '{propertyName}' constraint. Expected an integer.";
+            return false;
+        }
+
+        if (value < 0)
+        {
+            error = $"Key '{keyPath}' has invalid '{propertyName}' constraint. Value must be >= 0.";
+            return false;
         }
 
         return true;

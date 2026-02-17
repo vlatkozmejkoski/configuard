@@ -21,8 +21,14 @@ Contract validity minimums:
 - `environments` must contain at least one value.
 - `environments` values must be non-empty and unique (case-insensitive, after trimming).
 - `keys` must contain at least one key rule.
+- `keys[].type` must be one of the supported primitive types.
 - `keys[].requiredIn` and `keys[].forbiddenIn` entries must reference declared values from `environments`.
 - `keys[].requiredIn` and `keys[].forbiddenIn` values must be unique within each list (case-insensitive, after trimming).
+- `keys[].sourcePreference` entries must be non-empty, unique after normalization, and one of: `appsettings`, `dotenv`, `envsnapshot`.
+- `keys[].constraints` (when present) must be a JSON object.
+- Constraint bound pairs must be ordered: `minLength <= maxLength`, `minimum <= maximum`, `minItems <= maxItems`.
+- Integer constraints must be integral and non-negative: `minLength`, `maxLength`, `minItems`, `maxItems`.
+- `constraints.enum` must be a non-empty array when specified.
 
 ## Core Structure
 

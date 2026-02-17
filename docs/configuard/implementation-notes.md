@@ -1129,3 +1129,56 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents redundant or ambiguous rule policy lists from being accepted.
 - Closes normalization gaps that could hide required/forbidden overlap bugs.
+
+## Step 56: Validate sourcePreference semantics at contract load time
+
+### What I changed
+
+- Added `TryValidateSourcePreference(...)` in `ContractLoader` and enforced it per key:
+  - rejects empty `sourcePreference` entries
+  - rejects unsupported sources (must be `appsettings`, `dotenv`, or `envsnapshot`)
+  - rejects duplicates after trim + case-insensitive normalization
+- Added `ContractLoaderTests` for unsupported, duplicate, and empty `sourcePreference` values.
+
+### Why
+
+- Moves source preference contract correctness checks to load-time hard errors rather than runtime warnings.
+- Prevents ambiguous source ordering and typo-driven misconfiguration from entering validation flows.
+
+## Step 57: Harden key type and constraints semantics at load time
+
+### What I changed
+
+- Added key type validation in `ContractLoader`:
+  - rejects empty `keys[].type`
+  - rejects unsupported types (must match v1 supported primitives)
+- Added constraints semantic validation in `ContractLoader`:
+  - rejects non-object `constraints`
+  - rejects inverted bound pairs:
+    - `minLength > maxLength`
+    - `minimum > maximum`
+    - `minItems > maxItems`
+- Added `ContractLoaderTests` coverage for each invalid case.
+
+### Why
+
+- Fails malformed contracts early before they reach runtime evaluation.
+- Prevents silent no-op constraints and confusing policy behavior due to impossible bounds.
+
+## Step 58: Enforce integer/non-negative and enum-shape constraint invariants
+
+### What I changed
+
+- Extended `ContractLoader` constraints validation to enforce:
+  - `minLength`, `maxLength`, `minItems`, `maxItems` are integers
+  - these integer constraints are non-negative (`>= 0`)
+  - `constraints.enum` is an array and is not empty
+- Added `ContractLoaderTests` for:
+  - negative `minLength`
+  - fractional `maxItems`
+  - empty `enum` array
+
+### Why
+
+- Prevents malformed constraints that would otherwise be ignored or misinterpreted at runtime.
+- Aligns contract-load semantics more closely with documented JSON schema expectations.
