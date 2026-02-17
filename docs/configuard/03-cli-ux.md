@@ -54,9 +54,10 @@ configuard validate --contract ./configuard.contract.json --env staging --env pr
 
 ### Warning Semantics
 
-- Warnings can be emitted for non-fatal contract issues (for example unknown `sourcePreference` values).
+- Warnings can be emitted for non-fatal runtime diagnostics.
 - Warnings appear in text/json/sarif outputs.
 - Warnings alone do not change successful exit code.
+- Invalid `sourcePreference` contract values are rejected at load time (input error) rather than emitted as runtime warnings.
 
 ### Exit Codes
 

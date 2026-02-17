@@ -31,7 +31,7 @@ Implemented:
   - `requiredIn`, `forbiddenIn`
   - type checks (`string`, `int`, `number`, `bool`, `object`, `array`)
   - constraints (`enum`, length, regex, numeric bounds, array bounds)
-  - per-key `sourcePreference` (`appsettings` / `dotenv`)
+  - per-key `sourcePreference` (`appsettings` / `dotenv` / `envsnapshot`)
 - Source loading from:
   - `appsettings.json` + `appsettings.{env}.json`
   - optional `.env` + `.env.{env}`
@@ -39,6 +39,7 @@ Implemented:
 - Output formats for `validate`:
   - `text` (default)
   - `json`
+  - `sarif`
 - Unit tests for parser, loader, validator, and formatter
 
 In progress:
@@ -103,8 +104,8 @@ Setup:
 Publish via git tag:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 What the workflow does:
@@ -118,7 +119,7 @@ What the workflow does:
 
 Manual publish trigger:
 
-- Use **Actions -> Release -> Run workflow** and provide `version` (for example `0.1.2`).
+- Use **Actions -> Release -> Run workflow** and provide `version` (for example `X.Y.Z`).
 
 ## Continuous integration
 
@@ -159,9 +160,10 @@ Exit codes:
 
 Warning behavior:
 
-- Warnings (for example unknown `sourcePreference` values) are reported in output.
+- Warning output fields are supported in text/json/sarif responses.
 - Warnings do **not** fail the command by themselves.
 - Non-zero exit code is driven by violations/errors, not warnings alone.
+- Invalid `sourcePreference` values are enforced at contract-load time and return input error exit code `2` (not runtime warnings).
 - Source loading failures (for example malformed JSON or missing non-optional source files) return input error exit code `2`.
 - Missing `appsettings.base` source file is treated as a hard input error.
 
