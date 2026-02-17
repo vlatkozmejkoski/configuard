@@ -1107,4 +1107,17 @@ public sealed class ContractLoaderTests
         }
     }
 
+    [Fact]
+    public void TryLoad_QuickstartExampleContract_IsValid()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var contractPath = Path.Combine(repoRoot, "examples", "quickstart", "configuard.contract.json");
+
+        var ok = ContractLoader.TryLoad(contractPath, out var contract, out var error);
+
+        Assert.True(ok);
+        Assert.NotNull(contract);
+        Assert.Null(error);
+    }
+
 }

@@ -418,4 +418,147 @@ public sealed class ContractValidatorTests
         }
     }
 
+    [Fact]
+    public void Validate_ValidContractMatrixAcrossTypesSourcesAndConstraints_Passes()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), """
+            {
+              "Api": {
+                "Key": "abc-123"
+              },
+              "Service": {
+                "Port": 8080,
+                "Ratio": 2.5
+              },
+              "Features": {
+                "UseMockPayments": true,
+                "AllowedHosts": ["api.internal"]
+              },
+              "Metadata": {
+                "Owner": "ops"
+              }
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(tempDir, ".env.production"), """
+            API__KEY=from-dotenv
+            """);
+
+            var snapshotsDir = Path.Combine(tempDir, "snapshots");
+            Directory.CreateDirectory(snapshotsDir);
+            File.WriteAllText(Path.Combine(snapshotsDir, "production.json"), """
+            {
+              "Metadata": {
+                "Owner": "platform"
+              }
+            }
+            """);
+
+            var contract = new ContractDocument
+            {
+                Version = "1",
+                Environments = ["production"],
+                Sources = new ContractSources
+                {
+                    AppSettings = new AppSettingsSource
+                    {
+                        Base = "appsettings.json",
+                        EnvironmentPattern = "appsettings.{env}.json"
+                    },
+                    DotEnv = new DotEnvSource
+                    {
+                        Base = ".env",
+                        EnvironmentPattern = ".env.{env}",
+                        Optional = true
+                    },
+                    EnvSnapshot = new EnvSnapshotSource
+                    {
+                        EnvironmentPattern = "snapshots/{env}.json",
+                        Optional = true
+                    }
+                },
+                Keys =
+                [
+                    new ContractKeyRule
+                    {
+                        Path = "Api:Key",
+                        Type = "string",
+                        RequiredIn = ["production"],
+                        SourcePreference = [SourceKinds.DotEnv, SourceKinds.AppSettings],
+                        Constraints = ParseJsonElement("""
+                        {
+                          "minLength": 3,
+                          "maxLength": 40,
+                          "pattern": "^[a-z\\-]+$"
+                        }
+                        """)
+                    },
+                    new ContractKeyRule
+                    {
+                        Path = "Service:Port",
+                        Type = "int",
+                        RequiredIn = ["production"],
+                        Constraints = ParseJsonElement("""
+                        {
+                          "minimum": 1,
+                          "maximum": 65535
+                        }
+                        """)
+                    },
+                    new ContractKeyRule
+                    {
+                        Path = "Service:Ratio",
+                        Type = "number",
+                        RequiredIn = ["production"],
+                        Constraints = ParseJsonElement("""
+                        {
+                          "minimum": 0.5,
+                          "maximum": 10.0
+                        }
+                        """)
+                    },
+                    new ContractKeyRule
+                    {
+                        Path = "Features:UseMockPayments",
+                        Type = "bool",
+                        RequiredIn = ["production"]
+                    },
+                    new ContractKeyRule
+                    {
+                        Path = "Features:AllowedHosts",
+                        Type = "array",
+                        RequiredIn = ["production"],
+                        Constraints = ParseJsonElement("""
+                        {
+                          "minItems": 1,
+                          "maxItems": 3
+                        }
+                        """)
+                    },
+                    new ContractKeyRule
+                    {
+                        Path = "Metadata",
+                        Type = "object",
+                        SourcePreference = [SourceKinds.EnvSnapshot, SourceKinds.AppSettings]
+                    }
+                ]
+            };
+
+            var result = ContractValidator.Validate(contract, tempDir, []);
+
+            Assert.True(
+                result.IsSuccess,
+                $"Issues: {string.Join("; ", result.Issues.Select(i => $"{i.Code}:{i.Path}:{i.Environment}"))}");
+            Assert.Empty(result.Issues);
+            Assert.Empty(result.Warnings);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

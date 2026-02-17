@@ -15,6 +15,12 @@ Current focus: reliable `validate` behavior with contract-based rules and CI-fri
 - Added CI/release automation via GitHub Actions, including NuGet publish and release artifact flow.
 - Added MIT licensing and package metadata improvements.
 
+## 0.2.2 Patch Highlights
+
+- Hardened contract-load semantic validation for environments, per-key source preferences, and constraints shape/bounds.
+- Added command-level input-error regression tests and a full valid-contract matrix validation test.
+- Refactored `ContractLoader` internals into focused rule validators while preserving behavior.
+
 ## Why Configuard
 
 - Prevent config drift between environments.

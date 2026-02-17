@@ -8,7 +8,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>configuard</ToolCommandName>
     <PackageId>Configuard.Cli</PackageId>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <Authors>Configuard</Authors>
     <Description>CLI for validating configuration contracts across environments.</Description>
     <PackageTags>config;validation;cli;dotnet-tool</PackageTags>

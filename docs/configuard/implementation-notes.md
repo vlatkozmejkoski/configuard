@@ -1196,3 +1196,69 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Source preference correctness is now enforced at contract-load time as input errors.
 - Eliminates duplicate validation pathways and keeps diagnostics ownership clear (loader vs runtime validator).
+
+## Step 60: Refactor ContractLoader into focused validation components
+
+### What I changed
+
+- Extracted `ContractLoader` semantic checks into focused internal validators:
+  - `ContractEnvironmentRulesValidator`
+  - `ContractSourceRulesValidator`
+  - `ContractKeyRulesValidator`
+  - `ContractConstraintRulesValidator`
+- Kept all validation behavior and error messages equivalent while reducing method size and responsibility overlap in `ContractLoader`.
+
+### Why
+
+- Improves maintainability and reviewability for a validation surface that grew significantly during hardening slices.
+- Makes future rule changes safer by isolating concerns and reducing coupling.
+
+## Step 61: Add command-level regression coverage for strict contract-load failures
+
+### What I changed
+
+- Added `CommandHandlersTests` cases to verify `ExitCodes.InputError` for semantic contract errors across:
+  - `validate`
+  - `diff`
+  - `explain`
+- Used invalid `sourcePreference` contract input as the shared strict-load failure vector.
+
+### Why
+
+- Ensures command-level error mapping remains consistent as loader validations evolve.
+- Prevents regressions where one command might incorrectly downgrade strict load failures.
+
+## Step 62: Add full valid-contract matrix validation test
+
+### What I changed
+
+- Added `ContractValidatorTests.Validate_ValidContractMatrixAcrossTypesSourcesAndConstraints_Passes`.
+- Covers mixed source resolution (`appsettings`, `dotenv`, `envSnapshot`) and representative type/constraint combinations in one success-path scenario.
+
+### Why
+
+- Adds confidence that stricter semantic guards did not break realistic end-to-end validation flows.
+- Provides a compact integration-style baseline for future refactors.
+
+## Step 63: Add quickstart contract validity guard test
+
+### What I changed
+
+- Added `ContractLoaderTests.TryLoad_QuickstartExampleContract_IsValid` to ensure `examples/quickstart/configuard.contract.json` remains compatible with current strict load semantics.
+
+### Why
+
+- Prevents documentation/sample drift as semantic rules tighten.
+- Keeps quickstart onboarding aligned with real parser/loader behavior.
+
+## Step 64: Cut patch release 0.2.2
+
+### What I changed
+
+- Bumped `src/Configuard.Cli/Configuard.Cli.csproj` version from `0.2.1` to `0.2.2`.
+- Updated README with `0.2.2` patch highlights.
+- Ran release verification checks and prepared tag-based release flow.
+
+### Why
+
+- Packages accumulated stability/refactor and validation-hardening work into a consumable patch release.

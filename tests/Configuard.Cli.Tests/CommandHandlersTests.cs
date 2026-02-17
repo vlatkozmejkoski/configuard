@@ -668,4 +668,139 @@ public sealed class CommandHandlersTests
         }
     }
 
+    [Fact]
+    public void Execute_ValidateInvalidSourcePreferenceInContract_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "sourcePreference": ["custom"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "validate",
+                ContractPath: contractPath,
+                Environments: ["staging"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_DiffInvalidSourcePreferenceInContract_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "production"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "sourcePreference": ["custom"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "diff",
+                ContractPath: contractPath,
+                Environments: ["staging", "production"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_ExplainInvalidSourcePreferenceInContract_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "sourcePreference": ["custom"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "explain",
+                ContractPath: contractPath,
+                Environments: ["staging"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: "Api:Key");
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }
