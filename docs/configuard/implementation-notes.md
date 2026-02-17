@@ -1045,3 +1045,37 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Moves critical source-loading/security checks under direct unit coverage instead of relying only on command-level tests.
 - Improves confidence in the resolver as the core configuration ingestion boundary.
+
+## Step 51: Harden contract shape invariants in ContractLoader
+
+### What I changed
+
+- Added contract-level invariants in `ContractLoader.TryLoad(...)`:
+  - `environments` must contain at least one entry.
+  - `keys` must contain at least one key rule.
+  - `sources.*.environmentPattern` must include `{env}` for configured `appsettings`, `dotenv`, and `envSnapshot`.
+- Expanded `ContractLoaderTests` to cover:
+  - empty `environments`
+  - empty `keys`
+  - missing `{env}` placeholder in each supported source pattern type
+
+### Why
+
+- Rejects structurally valid but semantically unusable contracts early.
+- Prevents silent misconfiguration where environment expansion can never happen due to static patterns.
+
+## Step 52: Add release-time packaging metadata guards
+
+### What I changed
+
+- Added `Validate packaging metadata` step in `.github/workflows/release.yml` to fail fast if packaging-critical metadata is missing:
+  - `PackAsTool == true`
+  - `ToolCommandName` present
+  - `PackageReadmeFile` present and exists at repo root
+  - `PackageLicenseExpression` present
+- Extended `release-check.ps1` with equivalent local preflight checks.
+
+### Why
+
+- Catches NuGet/tool packaging regressions before build-and-publish phases.
+- Keeps local release checks aligned with CI/CD release gates.

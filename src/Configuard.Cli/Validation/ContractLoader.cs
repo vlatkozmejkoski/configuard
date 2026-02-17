@@ -36,6 +36,18 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (contract.Environments.Count == 0)
+            {
+                error = "Contract must define at least one environment in 'environments'.";
+                return false;
+            }
+
+            if (contract.Keys.Count == 0)
+            {
+                error = "Contract must define at least one key rule in 'keys'.";
+                return false;
+            }
+
             if (contract.Sources.AppSettings is null)
             {
                 error = "Missing required source configuration: sources.appsettings";
@@ -49,6 +61,12 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (!contract.Sources.AppSettings.EnvironmentPattern.Contains("{env}", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "sources.appsettings.environmentPattern must include '{env}' placeholder.";
+                return false;
+            }
+
             if (contract.Sources.DotEnv is not null &&
                 (string.IsNullOrWhiteSpace(contract.Sources.DotEnv.Base) ||
                  string.IsNullOrWhiteSpace(contract.Sources.DotEnv.EnvironmentPattern)))
@@ -57,10 +75,24 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (contract.Sources.DotEnv is not null &&
+                !contract.Sources.DotEnv.EnvironmentPattern!.Contains("{env}", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "sources.dotenv.environmentPattern must include '{env}' placeholder.";
+                return false;
+            }
+
             if (contract.Sources.EnvSnapshot is not null &&
                 string.IsNullOrWhiteSpace(contract.Sources.EnvSnapshot.EnvironmentPattern))
             {
                 error = "sources.envSnapshot.environmentPattern is required when envSnapshot source is configured.";
+                return false;
+            }
+
+            if (contract.Sources.EnvSnapshot is not null &&
+                !contract.Sources.EnvSnapshot.EnvironmentPattern!.Contains("{env}", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "sources.envSnapshot.environmentPattern must include '{env}' placeholder.";
                 return false;
             }
 

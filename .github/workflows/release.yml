@@ -70,6 +70,38 @@ jobs:
             exit 1
           }
 
+      - name: Validate packaging metadata
+        shell: pwsh
+        run: |
+          [xml]$csproj = Get-Content "src/Configuard.Cli/Configuard.Cli.csproj"
+          $props = $csproj.Project.PropertyGroup | Select-Object -First 1
+
+          if ($props.PackAsTool -ne "true") {
+            Write-Error "PackAsTool must be true for dotnet tool packaging."
+            exit 1
+          }
+
+          if ([string]::IsNullOrWhiteSpace($props.ToolCommandName)) {
+            Write-Error "ToolCommandName is required."
+            exit 1
+          }
+
+          if ([string]::IsNullOrWhiteSpace($props.PackageReadmeFile)) {
+            Write-Error "PackageReadmeFile is required."
+            exit 1
+          }
+
+          if ([string]::IsNullOrWhiteSpace($props.PackageLicenseExpression)) {
+            Write-Error "PackageLicenseExpression is required."
+            exit 1
+          }
+
+          $readmePath = $props.PackageReadmeFile
+          if (-not (Test-Path $readmePath)) {
+            Write-Error "PackageReadmeFile '$readmePath' does not exist at repository root."
+            exit 1
+          }
+
       - name: Restore
         run: dotnet restore Configuard.sln
 

@@ -16,6 +16,11 @@ The contract is explicit and user-authored in phase 1.
 - Default lookup path: repository root
 - Override via CLI: `--contract <path>`
 
+Contract validity minimums:
+
+- `environments` must contain at least one value.
+- `keys` must contain at least one key rule.
+
 ## Core Structure
 
 ```json
@@ -111,6 +116,7 @@ Source file strictness:
 - `dotenv.optional: false` requires both configured dotenv files (`base` and resolved `environmentPattern`) to exist.
 - `envSnapshot.optional: false` requires the resolved snapshot file to exist for each evaluated environment.
 - Configured source paths must resolve under the contract directory (path traversal outside is rejected).
+- Source `environmentPattern` values must include `{env}` for `appsettings`, `dotenv`, and `envSnapshot`.
 
 ## Normalization Rules
 

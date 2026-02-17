@@ -30,6 +30,8 @@ public sealed class CommandHandlersTests
         try
         {
             var appsettingsPath = Path.Combine(tempDir, "appsettings.json");
+            var appsettingsEnvPath = Path.Combine(tempDir, "appsettings.staging.json");
+            var appsettingsPattern = Path.Combine(tempDir, "appsettings.{env}.json");
             var contractPath = Path.Combine(tempDir, "configuard.contract.json");
 
             File.WriteAllText(appsettingsPath, """
@@ -39,6 +41,7 @@ public sealed class CommandHandlersTests
               }
             }
             """);
+            File.WriteAllText(appsettingsEnvPath, "{}");
 
             File.WriteAllText(contractPath, $$"""
             {
@@ -47,7 +50,7 @@ public sealed class CommandHandlersTests
               "sources": {
                 "appsettings": {
                   "base": "{{EscapeJsonPath(appsettingsPath)}}",
-                  "environmentPattern": "{{EscapeJsonPath(appsettingsPath)}}"
+                  "environmentPattern": "{{EscapeJsonPath(appsettingsPattern)}}"
                 }
               },
               "keys": [

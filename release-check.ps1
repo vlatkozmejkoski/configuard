@@ -7,6 +7,27 @@ if ([string]::IsNullOrWhiteSpace($projectVersion)) {
     throw "Project version is missing in src/Configuard.Cli/Configuard.Cli.csproj."
 }
 
+$props = $csproj.Project.PropertyGroup | Select-Object -First 1
+if ($props.PackAsTool -ne "true") {
+    throw "PackAsTool must be true in src/Configuard.Cli/Configuard.Cli.csproj."
+}
+
+if ([string]::IsNullOrWhiteSpace($props.ToolCommandName)) {
+    throw "ToolCommandName is missing in src/Configuard.Cli/Configuard.Cli.csproj."
+}
+
+if ([string]::IsNullOrWhiteSpace($props.PackageReadmeFile)) {
+    throw "PackageReadmeFile is missing in src/Configuard.Cli/Configuard.Cli.csproj."
+}
+
+if ([string]::IsNullOrWhiteSpace($props.PackageLicenseExpression)) {
+    throw "PackageLicenseExpression is missing in src/Configuard.Cli/Configuard.Cli.csproj."
+}
+
+if (-not (Test-Path $props.PackageReadmeFile)) {
+    throw "PackageReadmeFile '$($props.PackageReadmeFile)' was not found at repository root."
+}
+
 Write-Host "==> Release check: version"
 Write-Host "Project version: $projectVersion"
 

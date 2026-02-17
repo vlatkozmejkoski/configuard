@@ -77,7 +77,9 @@ public sealed class ContractLoaderTests
                   "base": ".env"
                 }
               },
-              "keys": []
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
             }
             """);
 
@@ -112,7 +114,9 @@ public sealed class ContractLoaderTests
                   "optional": true
                 }
               },
-              "keys": []
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
             }
             """);
 
@@ -229,6 +233,182 @@ public sealed class ContractLoaderTests
 
             Assert.False(ok);
             Assert.Contains("both required and forbidden", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_EmptyEnvironments_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": [],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("at least one environment", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_EmptyKeys_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": []
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("at least one key rule", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_AppSettingsPatternWithoutEnvPlaceholder_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.production.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("sources.appsettings.environmentPattern must include '{env}'", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_DotEnvPatternWithoutEnvPlaceholder_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                },
+                "dotenv": {
+                  "base": ".env",
+                  "environmentPattern": ".env.production"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("sources.dotenv.environmentPattern must include '{env}'", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_EnvSnapshotPatternWithoutEnvPlaceholder_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                },
+                "envSnapshot": {
+                  "environmentPattern": "snapshots/staging.json",
+                  "optional": true
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("sources.envSnapshot.environmentPattern must include '{env}'", error, StringComparison.Ordinal);
         }
         finally
         {
