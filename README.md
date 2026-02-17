@@ -7,6 +7,14 @@ Configuard is a .NET CLI for validating configuration contracts across environme
 
 Current focus: reliable `validate` behavior with contract-based rules and CI-friendly exit codes.
 
+## 0.2.0 Highlights
+
+- Added optional `envSnapshot` source support with provenance-aware resolution.
+- Hardened source loading semantics with explicit hard-fail behavior for required inputs.
+- Expanded `explain --verbosity detailed` diagnostics (matched rule mode, source order, candidate paths).
+- Added CI/release automation via GitHub Actions, including NuGet publish and release artifact flow.
+- Added MIT licensing and package metadata improvements.
+
 ## Why Configuard
 
 - Prevent config drift between environments.
