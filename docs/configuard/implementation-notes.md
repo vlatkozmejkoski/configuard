@@ -1029,3 +1029,19 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Reduces race windows between existence checks and reads.
 - Simplifies source loading behavior and makes missing-file handling explicit.
+
+## Step 50: Add direct unit tests for provenance resolver behavior
+
+### What I changed
+
+- Added `AppSettingsProvenanceResolverTests` with direct coverage for:
+  - missing required appsettings base file
+  - missing optional vs required dotenv behavior
+  - source path traversal rejection
+  - malformed appsettings JSON handling
+  - per-source provenance map population (`appsettings`, `dotenv`, `envSnapshot`)
+
+### Why
+
+- Moves critical source-loading/security checks under direct unit coverage instead of relying only on command-level tests.
+- Improves confidence in the resolver as the core configuration ingestion boundary.
