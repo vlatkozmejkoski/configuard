@@ -127,6 +127,12 @@ This repository includes `.github/workflows/ci.yml`:
 - restores, builds, and tests the solution in Release mode
 - acts as a gate before release tagging
 
+Stabilization ops automation:
+
+- label catalog is defined in `.github/labels.yml`
+- `.github/workflows/label-sync.yml` syncs labels to GitHub
+- `.github/workflows/stabilization-triage.yml` auto-adds `needs-triage` and appends a triage checklist for stabilization issues
+
 ## Command Use Cases
 
 ### `validate`
@@ -207,6 +213,7 @@ Reference docs:
 - `docs/configuard/02-contract-format.md`
 - `docs/configuard/03-cli-ux.md`
 - `docs/configuard/04-mvp-boundaries.md`
+- `docs/configuard/06-0.2x-stabilization.md`
 
 ## Project Structure
 
@@ -217,6 +224,7 @@ docs/configuard/
   03-cli-ux.md
   04-mvp-boundaries.md
   05-phase2-roslyn.md
+  06-0.2x-stabilization.md
   implementation-notes.md
 
 src/Configuard.Cli/

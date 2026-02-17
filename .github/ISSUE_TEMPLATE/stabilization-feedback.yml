@@ -1,0 +1,84 @@
+name: 0.2.x stabilization feedback
+description: Report behavior from pilot usage during 0.2.x stabilization.
+title: "[stabilization] "
+labels:
+  - stabilization
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping stabilize Configuard 0.2.x.
+        Please include enough context to reproduce the issue.
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options:
+        - validate
+        - diff
+        - explain
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Configuard version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: commandline
+    attributes:
+      label: Command line used
+      placeholder: "configuard validate --contract ... --env ... --format json"
+    validations:
+      required: true
+
+  - type: input
+    id: exit_code
+    attributes:
+      label: Exit code
+      placeholder: "0 / 2 / 3 / 4"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output snippet (sanitized)
+      description: Remove secrets before posting.
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: sources
+    attributes:
+      label: Source types involved
+      options:
+        - label: appsettings
+        - label: dotenv
+        - label: envSnapshot
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Include contract excerpts, environment setup, and repro hints.

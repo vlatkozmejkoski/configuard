@@ -789,3 +789,40 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents silent validations against incomplete source sets when the base appsettings input is absent.
 - Makes release pipeline failures explicit and easier to diagnose when repo secrets are not configured.
+
+## Step 35: Start 0.2.x stabilization operations
+
+### What I changed
+
+- Added stabilization plan doc:
+  - `docs/configuard/06-0.2x-stabilization.md`
+  - defines pilot scope, feedback capture, stability gates, and patch-release policy
+- Added structured GitHub issue template:
+  - `.github/ISSUE_TEMPLATE/stabilization-feedback.yml`
+  - captures command, exit code, expected/actual behavior, output snippet, and source context
+- Updated README doc links and project structure listing.
+
+### Why
+
+- Translates stabilization intent into a repeatable, trackable operating process.
+- Improves signal quality of pilot feedback to speed triage and 0.2.x patch decisions.
+
+## Step 36: Add stabilization label taxonomy and triage automation
+
+### What I changed
+
+- Added label definitions:
+  - `.github/labels.yml`
+  - includes stabilization, triage, command-area, and release-area labels
+- Added label synchronization workflow:
+  - `.github/workflows/label-sync.yml`
+  - syncs labels from `.github/labels.yml` on push/workflow_dispatch
+- Added stabilization triage workflow:
+  - `.github/workflows/stabilization-triage.yml`
+  - for `stabilization` issues, auto-adds `needs-triage` and appends triage checklist guidance
+- Updated README with stabilization automation references.
+
+### Why
+
+- Ensures issue labeling is consistent and low-friction.
+- Speeds triage cycles by adding immediate structure to incoming stabilization reports.

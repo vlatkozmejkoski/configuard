@@ -1,0 +1,35 @@
+- name: stabilization
+  color: 1d76db
+  description: Feedback and fixes related to 0.2.x stabilization.
+
+- name: needs-triage
+  color: d4c5f9
+  description: Needs review and prioritization.
+
+- name: kind/bug
+  color: d73a4a
+  description: Something is not working as expected.
+
+- name: kind/docs
+  color: 0075ca
+  description: Documentation clarifications or corrections.
+
+- name: area/validate
+  color: 0e8a16
+  description: Validation command behavior.
+
+- name: area/diff
+  color: 5319e7
+  description: Diff command behavior.
+
+- name: area/explain
+  color: fbca04
+  description: Explain command behavior.
+
+- name: area/sources
+  color: c2e0c6
+  description: Source loading and precedence behavior.
+
+- name: area/ci-release
+  color: bfd4f2
+  description: CI, release automation, and publishing workflow.

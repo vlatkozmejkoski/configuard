@@ -1,0 +1,61 @@
+name: Stabilization Triage
+
+on:
+  issues:
+    types:
+      - opened
+      - reopened
+      - labeled
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply triage label and guidance
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) {
+              return;
+            }
+
+            const labels = issue.labels.map(l => l.name);
+            if (!labels.includes("stabilization")) {
+              return;
+            }
+
+            if (!labels.includes("needs-triage")) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ["needs-triage"]
+              });
+            }
+
+            const marker = "<!-- stabilization-triage-guidance -->";
+            if ((issue.body || "").includes(marker)) {
+              return;
+            }
+
+            const body = (issue.body || "").trim();
+            const guidance = [
+              marker,
+              "",
+              "### Triage checklist",
+              "- [ ] Reproduced with exact command + version",
+              "- [ ] Confirmed expected vs actual behavior",
+              "- [ ] Classified area (`area/validate`, `area/diff`, `area/explain`, `area/sources`, `area/ci-release`)",
+              "- [ ] Added severity/priority in comments"
+            ].join("\n");
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `${body}\n\n${guidance}`
+            });
