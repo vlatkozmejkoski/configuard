@@ -2,32 +2,6 @@ namespace Configuard.Cli.Validation;
 
 internal static class RuleValueResolver
 {
-    public static IReadOnlyList<string> GetInvalidSourcePreferences(ContractKeyRule keyRule)
-    {
-        if (keyRule.SourcePreference.Count == 0)
-        {
-            return [];
-        }
-
-        var invalid = new List<string>();
-        foreach (var source in keyRule.SourcePreference)
-        {
-            var normalized = source.Trim().ToLowerInvariant();
-            if (string.IsNullOrWhiteSpace(normalized))
-            {
-                continue;
-            }
-
-            if (!SourceKinds.IsSupported(normalized) &&
-                !invalid.Contains(normalized, StringComparer.OrdinalIgnoreCase))
-            {
-                invalid.Add(normalized);
-            }
-        }
-
-        return invalid;
-    }
-
     public static bool TryResolveValue(
         ResolvedConfigBySource resolved,
         ContractKeyRule keyRule,

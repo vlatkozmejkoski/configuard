@@ -1182,3 +1182,17 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents malformed constraints that would otherwise be ignored or misinterpreted at runtime.
 - Aligns contract-load semantics more closely with documented JSON schema expectations.
+
+## Step 59: Remove redundant runtime warning path for sourcePreference
+
+### What I changed
+
+- Removed `ContractValidator` contract-warning pass for unknown `sourcePreference` values.
+- Removed now-unused `RuleValueResolver.GetInvalidSourcePreferences(...)`.
+- Removed legacy validator unit test that asserted unknown-source warnings during runtime validation.
+- Updated CLI UX JSON example to show warning-free output for this scenario (`warningCount: 0`), reflecting load-time strict contract rejection.
+
+### Why
+
+- Source preference correctness is now enforced at contract-load time as input errors.
+- Eliminates duplicate validation pathways and keeps diagnostics ownership clear (loader vs runtime validator).

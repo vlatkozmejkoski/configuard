@@ -166,14 +166,8 @@ Exit code: 3
   "command": "validate",
   "contract": "./configuard.contract.json",
   "result": "fail",
-  "summary": { "violationCount": 1, "warningCount": 1 },
-  "warnings": [
-    {
-      "path": "Api:Key",
-      "code": "unknown_source_preference",
-      "message": "Unknown sourcePreference value 'customSource' for key 'Api:Key'."
-    }
-  ],
+  "summary": { "violationCount": 1, "warningCount": 0 },
+  "warnings": [],
   "violations": [
     {
       "environment": "staging",

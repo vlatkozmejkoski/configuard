@@ -8,7 +8,6 @@ internal static class ContractValidator
         IReadOnlyList<string> targetEnvironments)
     {
         var result = new ValidationResult();
-        AddContractWarnings(contract, result);
         var environments = targetEnvironments.Count > 0 ? targetEnvironments : contract.Environments;
 
         foreach (var environment in environments)
@@ -18,27 +17,6 @@ internal static class ContractValidator
         }
 
         return result;
-    }
-
-    private static void AddContractWarnings(ContractDocument contract, ValidationResult result)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var keyRule in contract.Keys)
-        {
-            foreach (var invalidSource in RuleValueResolver.GetInvalidSourcePreferences(keyRule))
-            {
-                var token = $"{keyRule.Path}|{invalidSource}";
-                if (!seen.Add(token))
-                {
-                    continue;
-                }
-
-                result.Warnings.Add(new ValidationWarning(
-                    keyRule.Path,
-                    "unknown_source_preference",
-                    $"Unknown sourcePreference value '{invalidSource}' for key '{keyRule.Path}'."));
-            }
-        }
     }
 
     private static void ValidateEnvironment(

@@ -346,55 +346,6 @@ public sealed class ContractValidatorTests
     }
 
     [Fact]
-    public void Validate_AddsWarning_ForUnknownSourcePreferenceValue()
-    {
-        var tempDir = CreateTempDirectory();
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), """
-            {
-              "Api": {
-                "Key": "abc-123"
-              }
-            }
-            """);
-
-            var contract = new ContractDocument
-            {
-                Version = "1",
-                Environments = ["staging"],
-                Sources = new ContractSources
-                {
-                    AppSettings = new AppSettingsSource
-                    {
-                        Base = "appsettings.json",
-                        EnvironmentPattern = "appsettings.{env}.json"
-                    }
-                },
-                Keys =
-                [
-                    new ContractKeyRule
-                    {
-                        Path = "Api:Key",
-                        Type = "string",
-                        RequiredIn = ["staging"],
-                        SourcePreference = ["customSource"]
-                    }
-                ]
-            };
-
-            var result = ContractValidator.Validate(contract, tempDir, []);
-
-            Assert.True(result.IsSuccess);
-            Assert.Contains(result.Warnings, w => w.Code == "unknown_source_preference" && w.Path == "Api:Key");
-        }
-        finally
-        {
-            Directory.Delete(tempDir, recursive: true);
-        }
-    }
-
-    [Fact]
     public void Validate_UsesEnvSnapshotSource_AndOverridesOtherSources()
     {
         var tempDir = CreateTempDirectory();
