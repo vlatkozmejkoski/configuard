@@ -4,6 +4,10 @@ namespace Configuard.Cli.Cli;
 
 internal static class CommandHandlers
 {
+    private static readonly string[] ValidateFormats = ["text", "json", "sarif"];
+    private static readonly string[] DiffFormats = ["text", "json"];
+    private static readonly string[] ExplainFormats = ["text", "json"];
+
     public static int Execute(ParsedCommand command)
     {
         // Placeholder implementations: wire command contracts first, then add features incrementally.
@@ -18,16 +22,13 @@ internal static class CommandHandlers
 
     private static int HandleValidate(ParsedCommand command)
     {
-        if (!Verbosity.TryNormalize(command.Verbosity, out var verbosity))
+        if (!TryNormalizeVerbosity(command.Verbosity, out var verbosity))
         {
-            Console.Error.WriteLine($"Unsupported verbosity '{command.Verbosity}'. Supported: quiet, normal, detailed.");
             return ExitCodes.InputError;
         }
 
-        var contractPath = command.ContractPath ?? "configuard.contract.json";
-        if (!ContractLoader.TryLoad(contractPath, out var contract, out var loadError))
+        if (!TryLoadContract(command.ContractPath, out var contractPath, out var contract))
         {
-            Console.Error.WriteLine(loadError);
             return ExitCodes.InputError;
         }
 
@@ -39,7 +40,7 @@ internal static class CommandHandlers
                 repoRoot: GetContractBaseDirectory(contractPath),
                 targetEnvironments: command.Environments);
         }
-        catch (InvalidOperationException ex)
+        catch (ValidationInputException ex)
         {
             Console.Error.WriteLine(ex.Message);
             return ExitCodes.InputError;
@@ -48,39 +49,28 @@ internal static class CommandHandlers
             ? contract!.Environments
             : command.Environments.ToList();
 
-        var format = string.IsNullOrWhiteSpace(command.OutputFormat)
-            ? "text"
-            : command.OutputFormat.Trim().ToLowerInvariant();
+        if (!TryNormalizeFormat("validate", command.OutputFormat, ValidateFormats, out var format))
+        {
+            return ExitCodes.InputError;
+        }
 
         if (format == "json")
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(ValidateOutputFormatter.ToJson(contractPath, environments, result));
-            }
+            WriteIfNotQuiet(verbosity, () => ValidateOutputFormatter.ToJson(contractPath, environments, result));
         }
         else if (format == "sarif")
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(ValidateOutputFormatter.ToSarif(contractPath, environments, result));
-            }
+            WriteIfNotQuiet(verbosity, () => ValidateOutputFormatter.ToSarif(contractPath, environments, result));
         }
-        else if (format == "text")
+        else
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(ValidateOutputFormatter.ToText(
+            WriteIfNotQuiet(
+                verbosity,
+                () => ValidateOutputFormatter.ToText(
                     contractPath,
                     environments,
                     result,
                     detailed: verbosity == Verbosity.Detailed));
-            }
-        }
-        else
-        {
-            Console.Error.WriteLine($"Unsupported validate format '{command.OutputFormat}'. Supported: text, json, sarif.");
-            return ExitCodes.InputError;
         }
 
         return result.IsSuccess ? ExitCodes.Success : ExitCodes.PolicyFailure;
@@ -88,9 +78,8 @@ internal static class CommandHandlers
 
     private static int HandleDiff(ParsedCommand command)
     {
-        if (!Verbosity.TryNormalize(command.Verbosity, out var verbosity))
+        if (!TryNormalizeVerbosity(command.Verbosity, out var verbosity))
         {
-            Console.Error.WriteLine($"Unsupported verbosity '{command.Verbosity}'. Supported: quiet, normal, detailed.");
             return ExitCodes.InputError;
         }
 
@@ -100,10 +89,8 @@ internal static class CommandHandlers
             return ExitCodes.InputError;
         }
 
-        var contractPath = command.ContractPath ?? "configuard.contract.json";
-        if (!ContractLoader.TryLoad(contractPath, out var contract, out var loadError))
+        if (!TryLoadContract(command.ContractPath, out var contractPath, out var contract))
         {
-            Console.Error.WriteLine(loadError);
             return ExitCodes.InputError;
         }
 
@@ -114,39 +101,31 @@ internal static class CommandHandlers
         {
             result = ContractDiffer.Diff(contract!, GetContractBaseDirectory(contractPath), leftEnvironment, rightEnvironment);
         }
-        catch (InvalidOperationException ex)
+        catch (ValidationInputException ex)
         {
             Console.Error.WriteLine(ex.Message);
             return ExitCodes.InputError;
         }
 
-        var format = string.IsNullOrWhiteSpace(command.OutputFormat)
-            ? "text"
-            : command.OutputFormat.Trim().ToLowerInvariant();
+        if (!TryNormalizeFormat("diff", command.OutputFormat, DiffFormats, out var format))
+        {
+            return ExitCodes.InputError;
+        }
 
         if (format == "json")
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(DiffOutputFormatter.ToJson(contractPath, leftEnvironment, rightEnvironment, result));
-            }
+            WriteIfNotQuiet(verbosity, () => DiffOutputFormatter.ToJson(contractPath, leftEnvironment, rightEnvironment, result));
         }
-        else if (format == "text")
+        else
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(DiffOutputFormatter.ToText(
+            WriteIfNotQuiet(
+                verbosity,
+                () => DiffOutputFormatter.ToText(
                     contractPath,
                     leftEnvironment,
                     rightEnvironment,
                     result,
                     detailed: verbosity == Verbosity.Detailed));
-            }
-        }
-        else
-        {
-            Console.Error.WriteLine($"Unsupported diff format '{command.OutputFormat}'. Supported: text, json.");
-            return ExitCodes.InputError;
         }
 
         return result.IsClean ? ExitCodes.Success : ExitCodes.PolicyFailure;
@@ -154,9 +133,8 @@ internal static class CommandHandlers
 
     private static int HandleExplain(ParsedCommand command)
     {
-        if (!Verbosity.TryNormalize(command.Verbosity, out var verbosity))
+        if (!TryNormalizeVerbosity(command.Verbosity, out var verbosity))
         {
-            Console.Error.WriteLine($"Unsupported verbosity '{command.Verbosity}'. Supported: quiet, normal, detailed.");
             return ExitCodes.InputError;
         }
 
@@ -172,10 +150,8 @@ internal static class CommandHandlers
             return ExitCodes.InputError;
         }
 
-        var contractPath = command.ContractPath ?? "configuard.contract.json";
-        if (!ContractLoader.TryLoad(contractPath, out var contract, out var loadError))
+        if (!TryLoadContract(command.ContractPath, out var contractPath, out var contract))
         {
-            Console.Error.WriteLine(loadError);
             return ExitCodes.InputError;
         }
 
@@ -189,37 +165,83 @@ internal static class CommandHandlers
                 return ExitCodes.KeyNotFound;
             }
         }
-        catch (InvalidOperationException ex)
+        catch (ValidationInputException ex)
         {
             Console.Error.WriteLine(ex.Message);
             return ExitCodes.InputError;
         }
 
-        var format = string.IsNullOrWhiteSpace(command.OutputFormat)
-            ? "text"
-            : command.OutputFormat.Trim().ToLowerInvariant();
-
-        if (format == "json")
+        if (!TryNormalizeFormat("explain", command.OutputFormat, ExplainFormats, out var format))
         {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(ExplainOutputFormatter.ToJson(result!, detailed: verbosity == Verbosity.Detailed));
-            }
-        }
-        else if (format == "text")
-        {
-            if (verbosity != Verbosity.Quiet)
-            {
-                Console.WriteLine(ExplainOutputFormatter.ToText(result!, detailed: verbosity == Verbosity.Detailed));
-            }
-        }
-        else
-        {
-            Console.Error.WriteLine($"Unsupported explain format '{command.OutputFormat}'. Supported: text, json.");
             return ExitCodes.InputError;
         }
 
+        if (format == "json")
+        {
+            WriteIfNotQuiet(verbosity, () => ExplainOutputFormatter.ToJson(result!, detailed: verbosity == Verbosity.Detailed));
+        }
+        else
+        {
+            WriteIfNotQuiet(verbosity, () => ExplainOutputFormatter.ToText(result!, detailed: verbosity == Verbosity.Detailed));
+        }
+
         return result!.IsPass ? ExitCodes.Success : ExitCodes.PolicyFailure;
+    }
+
+    private static bool TryNormalizeVerbosity(string? rawVerbosity, out string verbosity)
+    {
+        if (Verbosity.TryNormalize(rawVerbosity, out verbosity))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine($"Unsupported verbosity '{rawVerbosity}'. Supported: quiet, normal, detailed.");
+        return false;
+    }
+
+    private static bool TryLoadContract(
+        string? rawContractPath,
+        out string contractPath,
+        out ContractDocument? contract)
+    {
+        contractPath = rawContractPath ?? "configuard.contract.json";
+        if (ContractLoader.TryLoad(contractPath, out contract, out var loadError))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine(loadError);
+        return false;
+    }
+
+    private static bool TryNormalizeFormat(
+        string commandName,
+        string? rawFormat,
+        IReadOnlyCollection<string> supportedFormats,
+        out string normalizedFormat)
+    {
+        normalizedFormat = string.IsNullOrWhiteSpace(rawFormat)
+            ? "text"
+            : rawFormat.Trim().ToLowerInvariant();
+
+        if (supportedFormats.Contains(normalizedFormat, StringComparer.Ordinal))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine(
+            $"Unsupported {commandName} format '{rawFormat}'. Supported: {string.Join(", ", supportedFormats)}.");
+        return false;
+    }
+
+    private static void WriteIfNotQuiet(string verbosity, Func<string> render)
+    {
+        if (verbosity == Verbosity.Quiet)
+        {
+            return;
+        }
+
+        Console.WriteLine(render());
     }
 
     private static string GetContractBaseDirectory(string contractPath)

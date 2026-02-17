@@ -884,3 +884,148 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents ambiguous contracts from silently producing non-deterministic behavior.
 - Moves conflict detection to load-time for faster and clearer user feedback.
+
+## Step 41: Refactor command orchestration helpers in `CommandHandlers`
+
+### What I changed
+
+- Extracted shared command-layer helpers:
+  - verbosity normalization + error output
+  - contract loading + error output
+  - output format normalization/validation
+  - quiet-mode output writer helper
+- Updated `validate`, `diff`, and `explain` handlers to use shared helpers instead of repeating the same control flow blocks.
+
+### Why
+
+- Reduces duplicated command orchestration logic and drift risk.
+- Makes command handlers easier to read and safer to extend with future commands/formats.
+
+## Step 42: Add source path traversal guard for configured file inputs
+
+### What I changed
+
+- Added root-bound path resolution in `AppSettingsProvenanceResolver`:
+  - configured source paths are normalized via `Path.GetFullPath`
+  - paths resolving outside the contract directory now fail with input error
+- Applied guard to all configured sources:
+  - appsettings (`base`, `environmentPattern`)
+  - dotenv (`base`, `environmentPattern`)
+  - envSnapshot (`environmentPattern`)
+- Added command-level regression test:
+  - `Execute_ValidateRejectsAppSettingsPathTraversal_ReturnsInputError`
+- Updated contract format docs to document root-bound source path requirement.
+
+### Why
+
+- Prevents contract-driven path traversal from reading files outside intended project scope.
+- Improves safety and predictability for source loading behavior.
+
+## Step 43: Consolidate shared test utilities
+
+### What I changed
+
+- Added `tests/Configuard.Cli.Tests/TestHelpers.cs` with shared helpers:
+  - `CreateTempDirectory()`
+  - `ParseJsonElement(...)`
+  - `EscapeJsonPath(...)`
+- Updated test suites to use shared helpers and removed duplicate helper methods from:
+  - `CommandHandlersTests`
+  - `ContractLoaderTests`
+  - `ContractValidatorTests`
+  - `ContractDifferTests`
+  - `ExplainEngineTests`
+
+### Why
+
+- Reduces repeated test boilerplate and maintenance overhead.
+- Improves consistency of test setup utilities across suites.
+
+## Step 44: Expand command parser edge-case test coverage
+
+### What I changed
+
+- Added parser tests for:
+  - empty args (`No command provided`)
+  - unknown options
+  - missing option value errors
+  - case-insensitive command names
+
+### Why
+
+- Locks down high-value parser failure paths and reduces risk of CLI UX regressions.
+- Strengthens confidence in command-line contract behavior across common user mistakes.
+
+## Step 45: Expand rule evaluation tests for type and constraint boundaries
+
+### What I changed
+
+- Added `RuleEvaluationTests` coverage for:
+  - supported primitive type matching behavior
+  - no-issue boundary cases (`minLength`/`maxLength`/`enum`/`pattern`)
+  - multi-violation reporting when more than one constraint fails
+
+### Why
+
+- Protects the core policy-evaluation engine with clearer behavioral expectations.
+- Reduces risk of regressions in high-impact validation paths.
+
+## Step 46: Introduce explicit validation input exception type
+
+### What I changed
+
+- Added `ValidationInputException` in validation layer.
+- Updated source resolution (`AppSettingsProvenanceResolver`) to throw `ValidationInputException` for:
+  - missing required source files
+  - source parse/read failures
+  - out-of-root source path resolution
+- Updated command handlers to catch `ValidationInputException` instead of generic `InvalidOperationException`.
+
+### Why
+
+- Improves error taxonomy by separating expected input/load failures from generic runtime exceptions.
+- Reduces accidental catch-all behavior and makes command-level error mapping clearer.
+
+## Step 47: Align CI/release workflow build semantics and SDK pinning
+
+### What I changed
+
+- Added `global.json` to pin .NET SDK baseline (`9.0.304`).
+- Updated `ci.yml` and `release.yml` to use `setup-dotnet` with `global-json-file`.
+- Added explicit `dotnet restore` in release workflow and switched build to `--no-restore` for consistency with CI.
+
+### Why
+
+- Reduces environment drift across local, CI, and release runs.
+- Makes workflow behavior more deterministic and easier to reason about.
+
+## Step 48: Enforce release version parity across workflow and project metadata
+
+### What I changed
+
+- Added release workflow guard that compares:
+  - resolved release version (`tag`/`workflow_dispatch`)
+  - `src/Configuard.Cli/Configuard.Cli.csproj` `<Version>`
+- Updated `release-check.ps1` to explicitly report project version during pre-release validation.
+- Updated README release automation notes to document version parity enforcement.
+
+### Why
+
+- Prevents accidental publish drift between Git tag version and packaged project version.
+- Makes release failures earlier and more actionable.
+
+## Step 49: Remove TOCTOU-style source existence prechecks
+
+### What I changed
+
+- Refactored `AppSettingsProvenanceResolver` to stop using `File.Exists(...)` before file reads.
+- Source loading now follows read-and-handle semantics:
+  - attempt read/parse directly
+  - treat missing-file exceptions as "not found" for optional inputs
+  - surface parse/read errors as `ValidationInputException`
+- Preserved required-source behavior by explicitly failing when required sources are not found.
+
+### Why
+
+- Reduces race windows between existence checks and reads.
+- Simplifies source loading behavior and makes missing-file handling explicit.

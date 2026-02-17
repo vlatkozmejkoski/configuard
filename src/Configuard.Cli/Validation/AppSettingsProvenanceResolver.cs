@@ -18,66 +18,112 @@ internal static class AppSettingsProvenanceResolver
         var appSettingsValues = new Dictionary<string, ResolvedConfigValue>(StringComparer.OrdinalIgnoreCase);
         var dotEnvValues = new Dictionary<string, ResolvedConfigValue>(StringComparer.OrdinalIgnoreCase);
         var envSnapshotValues = new Dictionary<string, ResolvedConfigValue>(StringComparer.OrdinalIgnoreCase);
+        var rootPath = Path.GetFullPath(repoRoot);
 
         if (sources.AppSettings is not null)
         {
-            var basePath = Path.Combine(repoRoot, sources.AppSettings.Base!);
-            if (File.Exists(basePath))
+            var basePath = ResolvePathUnderRoot(rootPath, sources.AppSettings.Base!);
+            if (!TryLoadJsonInto(appSettingsValues, basePath))
             {
-                LoadJsonInto(appSettingsValues, basePath);
-            }
-            else
-            {
-                throw new InvalidOperationException($"Required appsettings source file not found: {basePath}");
+                throw new ValidationInputException($"Required appsettings source file not found: {basePath}");
             }
 
             var envFileName = sources.AppSettings.EnvironmentPattern!.Replace("{env}", environment, StringComparison.OrdinalIgnoreCase);
-            var envPath = Path.Combine(repoRoot, envFileName);
-            if (File.Exists(envPath))
-            {
-                LoadJsonInto(appSettingsValues, envPath);
-            }
+            var envPath = ResolvePathUnderRoot(rootPath, envFileName);
+            TryLoadJsonInto(appSettingsValues, envPath);
         }
 
         if (sources.DotEnv is not null)
         {
-            var dotEnvBasePath = Path.Combine(repoRoot, sources.DotEnv.Base!);
-            if (File.Exists(dotEnvBasePath))
+            var dotEnvBasePath = ResolvePathUnderRoot(rootPath, sources.DotEnv.Base!);
+            if (!TryLoadDotEnvInto(dotEnvValues, dotEnvBasePath) && !sources.DotEnv.Optional)
             {
-                LoadDotEnvInto(dotEnvValues, dotEnvBasePath);
-            }
-            else if (!sources.DotEnv.Optional)
-            {
-                throw new InvalidOperationException($"Required dotenv source file not found: {dotEnvBasePath}");
+                throw new ValidationInputException($"Required dotenv source file not found: {dotEnvBasePath}");
             }
 
             var dotEnvEnvFileName = sources.DotEnv.EnvironmentPattern!.Replace("{env}", environment, StringComparison.OrdinalIgnoreCase);
-            var dotEnvEnvPath = Path.Combine(repoRoot, dotEnvEnvFileName);
-            if (File.Exists(dotEnvEnvPath))
+            var dotEnvEnvPath = ResolvePathUnderRoot(rootPath, dotEnvEnvFileName);
+            if (!TryLoadDotEnvInto(dotEnvValues, dotEnvEnvPath) && !sources.DotEnv.Optional)
             {
-                LoadDotEnvInto(dotEnvValues, dotEnvEnvPath);
-            }
-            else if (!sources.DotEnv.Optional)
-            {
-                throw new InvalidOperationException($"Required dotenv source file not found: {dotEnvEnvPath}");
+                throw new ValidationInputException($"Required dotenv source file not found: {dotEnvEnvPath}");
             }
         }
 
         if (sources.EnvSnapshot is not null)
         {
             var snapshotFileName = sources.EnvSnapshot.EnvironmentPattern!.Replace("{env}", environment, StringComparison.OrdinalIgnoreCase);
-            var snapshotPath = Path.Combine(repoRoot, snapshotFileName);
-            if (File.Exists(snapshotPath))
+            var snapshotPath = ResolvePathUnderRoot(rootPath, snapshotFileName);
+            if (!TryLoadEnvSnapshotInto(envSnapshotValues, snapshotPath) && !sources.EnvSnapshot.Optional)
             {
-                LoadEnvSnapshotInto(envSnapshotValues, snapshotPath);
-            }
-            else if (!sources.EnvSnapshot.Optional)
-            {
-                throw new InvalidOperationException($"Required envSnapshot source file not found: {snapshotPath}");
+                throw new ValidationInputException($"Required envSnapshot source file not found: {snapshotPath}");
             }
         }
 
         return new ResolvedConfigBySource(appSettingsValues, dotEnvValues, envSnapshotValues);
+    }
+
+    private static string ResolvePathUnderRoot(string rootPath, string configuredPath)
+    {
+        var candidatePath = Path.GetFullPath(Path.Combine(rootPath, configuredPath));
+        if (IsPathUnderRoot(rootPath, candidatePath))
+        {
+            return candidatePath;
+        }
+
+        throw new ValidationInputException(
+            $"Configured source path '{configuredPath}' resolves outside the contract directory.");
+    }
+
+    private static bool IsPathUnderRoot(string rootPath, string candidatePath)
+    {
+        var rootWithSeparator = rootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return string.Equals(candidatePath, rootPath, comparison) ||
+               candidatePath.StartsWith(rootWithSeparator, comparison);
+    }
+
+    private static bool TryLoadJsonInto(Dictionary<string, ResolvedConfigValue> values, string path)
+    {
+        try
+        {
+            LoadJsonInto(values, path);
+            return true;
+        }
+        catch (ValidationInputException ex) when (ex.InnerException is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryLoadDotEnvInto(Dictionary<string, ResolvedConfigValue> values, string path)
+    {
+        try
+        {
+            LoadDotEnvInto(values, path);
+            return true;
+        }
+        catch (ValidationInputException ex) when (ex.InnerException is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryLoadEnvSnapshotInto(Dictionary<string, ResolvedConfigValue> values, string path)
+    {
+        try
+        {
+            LoadEnvSnapshotInto(values, path);
+            return true;
+        }
+        catch (ValidationInputException ex) when (ex.InnerException is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static void LoadJsonInto(Dictionary<string, ResolvedConfigValue> values, string path)
@@ -90,7 +136,7 @@ internal static class AppSettingsProvenanceResolver
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new InvalidOperationException($"Failed to read source file '{path}': {ex.Message}", ex);
+            throw new ValidationInputException($"Failed to read source file '{path}': {ex.Message}", ex);
         }
     }
 
@@ -103,7 +149,7 @@ internal static class AppSettingsProvenanceResolver
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new InvalidOperationException($"Failed to read source file '{path}': {ex.Message}", ex);
+            throw new ValidationInputException($"Failed to read source file '{path}': {ex.Message}", ex);
         }
 
         foreach (var pair in parsed)
@@ -122,7 +168,7 @@ internal static class AppSettingsProvenanceResolver
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new InvalidOperationException($"Failed to read source file '{path}': {ex.Message}", ex);
+            throw new ValidationInputException($"Failed to read source file '{path}': {ex.Message}", ex);
         }
     }
 

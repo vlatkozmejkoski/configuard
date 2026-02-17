@@ -110,6 +110,7 @@ Source file strictness:
 - Missing `appsettings.{env}.json` files are allowed (base-only resolution remains valid).
 - `dotenv.optional: false` requires both configured dotenv files (`base` and resolved `environmentPattern`) to exist.
 - `envSnapshot.optional: false` requires the resolved snapshot file to exist for each evaluated environment.
+- Configured source paths must resolve under the contract directory (path traversal outside is rejected).
 
 ## Normalization Rules
 

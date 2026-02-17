@@ -1,4 +1,5 @@
 using Configuard.Cli.Validation;
+using static Configuard.Cli.Tests.TestHelpers;
 
 namespace Configuard.Cli.Tests;
 
@@ -65,10 +66,4 @@ public sealed class ContractDifferTests
         }
     }
 
-    private static string CreateTempDirectory()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "configuard-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
-    }
 }

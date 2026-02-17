@@ -26,7 +26,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          global-json-file: global.json
 
       - name: Resolve version
         id: version
@@ -54,8 +54,27 @@ jobs:
             exit 1
           fi
 
+      - name: Validate csproj version matches release version
+        shell: pwsh
+        run: |
+          [xml]$csproj = Get-Content "src/Configuard.Cli/Configuard.Cli.csproj"
+          $projectVersion = $csproj.Project.PropertyGroup.Version
+          $releaseVersion = "${{ steps.version.outputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($projectVersion)) {
+            Write-Error "Project version is missing in Configuard.Cli.csproj"
+            exit 1
+          }
+
+          if ($projectVersion -ne $releaseVersion) {
+            Write-Error "Version mismatch: csproj=$projectVersion, release=$releaseVersion"
+            exit 1
+          }
+
+      - name: Restore
+        run: dotnet restore Configuard.sln
+
       - name: Build
-        run: dotnet build Configuard.sln -c Release
+        run: dotnet build Configuard.sln -c Release --no-restore
 
       - name: Test
         run: dotnet test Configuard.sln -c Release --no-build

@@ -1,5 +1,6 @@
 using Configuard.Cli.Validation;
 using System.Text.Json;
+using static Configuard.Cli.Tests.TestHelpers;
 
 namespace Configuard.Cli.Tests;
 
@@ -466,16 +467,4 @@ public sealed class ContractValidatorTests
         }
     }
 
-    private static JsonElement ParseJsonElement(string json)
-    {
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.Clone();
-    }
-
-    private static string CreateTempDirectory()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "configuard-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
-    }
 }

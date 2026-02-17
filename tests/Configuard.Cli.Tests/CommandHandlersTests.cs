@@ -1,4 +1,5 @@
 using Configuard.Cli.Cli;
+using static Configuard.Cli.Tests.TestHelpers;
 
 namespace Configuard.Cli.Tests;
 
@@ -617,13 +618,51 @@ public sealed class CommandHandlersTests
         }
     }
 
-    private static string EscapeJsonPath(string path) =>
-        path.Replace("\\", "\\\\", StringComparison.Ordinal);
-
-    private static string CreateTempDirectory()
+    [Fact]
+    public void Execute_ValidateRejectsAppSettingsPathTraversal_ReturnsInputError()
     {
-        var path = Path.Combine(Path.GetTempPath(), "configuard-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractDir = Path.Combine(tempDir, "contract");
+            Directory.CreateDirectory(contractDir);
+            var contractPath = Path.Combine(contractDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "../appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["staging"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "validate",
+                ContractPath: contractPath,
+                Environments: ["staging"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
+
 }
