@@ -484,4 +484,80 @@ public sealed class ContractLoaderTests
         }
     }
 
+    [Fact]
+    public void TryLoad_KeyRequiredInReferencesUndeclaredEnvironment_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["production"]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("references undeclared environment 'production' in 'requiredIn'", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_KeyForbiddenInReferencesUndeclaredEnvironment_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "forbiddenIn": ["production"]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("references undeclared environment 'production' in 'forbiddenIn'", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

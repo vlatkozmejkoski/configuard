@@ -21,6 +21,7 @@ Contract validity minimums:
 - `environments` must contain at least one value.
 - `environments` values must be non-empty and unique (case-insensitive, after trimming).
 - `keys` must contain at least one key rule.
+- `keys[].requiredIn` and `keys[].forbiddenIn` entries must reference declared values from `environments`.
 
 ## Core Structure
 

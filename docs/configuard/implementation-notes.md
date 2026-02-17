@@ -1095,3 +1095,18 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Prevents subtle environment routing bugs caused by malformed or repeated environment identifiers.
 - Keeps contract semantics consistent with strict key/path validation already enforced elsewhere.
+
+## Step 54: Validate rule environment references against contract environments
+
+### What I changed
+
+- Extended `ContractLoader.TryValidateKeyRules(...)` to validate that each key rule's:
+  - `requiredIn` environments are declared in `environments`
+  - `forbiddenIn` environments are declared in `environments`
+- Added helper validation to reject empty rule environment entries and undeclared environment references with explicit errors.
+- Added tests in `ContractLoaderTests` for undeclared references in both `requiredIn` and `forbiddenIn`.
+
+### Why
+
+- Prevents silently ignored policy intent caused by typos or stale environment names in key rules.
+- Ensures policy lists are always aligned with the contract's declared environment universe.

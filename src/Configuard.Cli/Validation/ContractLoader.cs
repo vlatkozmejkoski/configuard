@@ -101,7 +101,7 @@ internal static class ContractLoader
                 return false;
             }
 
-            if (!TryValidateKeyRules(contract.Keys, out error))
+            if (!TryValidateKeyRules(contract.Keys, contract.Environments, out error))
             {
                 return false;
             }
@@ -120,10 +120,16 @@ internal static class ContractLoader
         }
     }
 
-    private static bool TryValidateKeyRules(IReadOnlyList<ContractKeyRule> keys, out string? error)
+    private static bool TryValidateKeyRules(
+        IReadOnlyList<ContractKeyRule> keys,
+        IReadOnlyList<string> environments,
+        out string? error)
     {
         error = null;
         var seenIdentifiers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var declaredEnvironments = new HashSet<string>(
+            environments.Select(environment => environment.Trim()),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var key in keys)
         {
@@ -168,6 +174,16 @@ internal static class ContractLoader
                     return false;
                 }
             }
+
+            if (!TryValidateRuleEnvironments(key.Path, "requiredIn", key.RequiredIn, declaredEnvironments, out error))
+            {
+                return false;
+            }
+
+            if (!TryValidateRuleEnvironments(key.Path, "forbiddenIn", key.ForbiddenIn, declaredEnvironments, out error))
+            {
+                return false;
+            }
         }
 
         return true;
@@ -190,6 +206,34 @@ internal static class ContractLoader
             if (!seenEnvironments.Add(canonicalEnvironment))
             {
                 error = $"Duplicate environment '{canonicalEnvironment}' is not allowed.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateRuleEnvironments(
+        string keyPath,
+        string propertyName,
+        IReadOnlyList<string> ruleEnvironments,
+        HashSet<string> declaredEnvironments,
+        out string? error)
+    {
+        error = null;
+
+        foreach (var environment in ruleEnvironments)
+        {
+            var canonicalEnvironment = environment.Trim();
+            if (string.IsNullOrWhiteSpace(canonicalEnvironment))
+            {
+                error = $"Key '{keyPath}' contains an empty '{propertyName}' environment.";
+                return false;
+            }
+
+            if (!declaredEnvironments.Contains(canonicalEnvironment))
+            {
+                error = $"Key '{keyPath}' references undeclared environment '{canonicalEnvironment}' in '{propertyName}'.";
                 return false;
             }
         }
