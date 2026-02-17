@@ -416,4 +416,72 @@ public sealed class ContractLoaderTests
         }
     }
 
+    [Fact]
+    public void TryLoad_EnvironmentWhitespaceOnly_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "   "],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("environments[] values must not be empty or whitespace", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_DuplicateEnvironmentsAfterTrimAndCaseFold_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", " Staging "],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("Duplicate environment", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

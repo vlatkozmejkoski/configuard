@@ -19,6 +19,7 @@ The contract is explicit and user-authored in phase 1.
 Contract validity minimums:
 
 - `environments` must contain at least one value.
+- `environments` values must be non-empty and unique (case-insensitive, after trimming).
 - `keys` must contain at least one key rule.
 
 ## Core Structure

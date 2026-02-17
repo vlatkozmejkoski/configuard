@@ -42,6 +42,11 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (!TryValidateEnvironments(contract.Environments, out error))
+            {
+                return false;
+            }
+
             if (contract.Keys.Count == 0)
             {
                 error = "Contract must define at least one key rule in 'keys'.";
@@ -162,6 +167,30 @@ internal static class ContractLoader
                     error = $"Key '{key.Path}' cannot be both required and forbidden in environment '{env}'.";
                     return false;
                 }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateEnvironments(IReadOnlyList<string> environments, out string? error)
+    {
+        error = null;
+        var seenEnvironments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var environment in environments)
+        {
+            var canonicalEnvironment = environment.Trim();
+            if (string.IsNullOrWhiteSpace(canonicalEnvironment))
+            {
+                error = "environments[] values must not be empty or whitespace.";
+                return false;
+            }
+
+            if (!seenEnvironments.Add(canonicalEnvironment))
+            {
+                error = $"Duplicate environment '{canonicalEnvironment}' is not allowed.";
+                return false;
             }
         }
 
