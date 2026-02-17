@@ -711,3 +711,36 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Removes manual release friction and reduces mistakes in versioning/publish sequence.
 - Standardizes release output so NuGet and GitHub releases stay in sync.
+
+## Step 31: Add explicit AI-generated warning in user-facing docs
+
+### What I changed
+
+- Added visible warning banners to:
+  - `README.md`
+  - `README-NUGET.md`
+- Warning text explicitly states the project/package is AI-generated ("vibe-coded") and should be reviewed before production use.
+
+### Why
+
+- Sets clear expectations for users and maintainers.
+- Encourages responsible validation before adoption in critical environments.
+
+## Step 32: Add baseline CI workflow for pull requests and main
+
+### What I changed
+
+- Added `.github/workflows/ci.yml`.
+- Workflow runs on:
+  - pushes to `main`
+  - all pull requests
+- Pipeline steps:
+  - restore
+  - build (Release, no-restore)
+  - test (Release, no-build)
+- Updated README with a short CI section.
+
+### Why
+
+- Provides fast feedback and regression protection before release tags are cut.
+- Keeps release workflow focused on publish/release concerns while CI covers day-to-day validation.

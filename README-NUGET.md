@@ -2,6 +2,9 @@
 
 Configuard is a .NET CLI for validating configuration contracts across environments before deployment.
 
+> [!WARNING]
+> This package is AI-generated ("vibe-coded"). Review behavior and outputs before production use.
+
 ## Install
 
 ```bash

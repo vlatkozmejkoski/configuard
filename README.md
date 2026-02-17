@@ -2,6 +2,9 @@
 
 Configuard is a .NET CLI for validating configuration contracts across environments before deployment.
 
+> [!WARNING]
+> This project is AI-generated ("vibe-coded"). Review code, tests, and release artifacts before using in production.
+
 Current focus: reliable `validate` behavior with contract-based rules and CI-friendly exit codes.
 
 ## Why Configuard
@@ -107,6 +110,14 @@ What the workflow does:
 Manual publish trigger:
 
 - Use **Actions -> Release -> Run workflow** and provide `version` (for example `0.1.2`).
+
+## Continuous integration
+
+This repository includes `.github/workflows/ci.yml`:
+
+- triggers on pushes to `main` and on pull requests
+- restores, builds, and tests the solution in Release mode
+- acts as a gate before release tagging
 
 ## Command Use Cases
 
