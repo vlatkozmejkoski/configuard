@@ -865,3 +865,22 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Eliminates duplicate loading/flattening logic that was not part of active execution paths.
 - Reduces maintenance drift risk and clarifies the canonical source-resolution path.
+
+## Step 40: Add contract semantic validation for key rule conflicts
+
+### What I changed
+
+- Extended `ContractLoader` with semantic key-rule validation:
+  - rejects duplicate key identifiers after normalization (`path` + `aliases`, `__` -> `:`)
+  - rejects keys that are both required and forbidden in the same environment
+  - rejects empty/whitespace normalized key paths and aliases
+- Added loader tests for:
+  - normalized duplicate path detection
+  - alias/path collision detection
+  - required/forbidden overlap detection
+- Updated contract format docs to clarify uniqueness and overlap constraints.
+
+### Why
+
+- Prevents ambiguous contracts from silently producing non-deterministic behavior.
+- Moves conflict detection to load-time for faster and clearer user feedback.

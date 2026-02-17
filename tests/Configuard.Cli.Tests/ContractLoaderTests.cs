@@ -126,6 +126,115 @@ public sealed class ContractLoaderTests
         }
     }
 
+    [Fact]
+    public void TryLoad_DuplicateKeyPathAfterNormalization_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string" },
+                { "path": "API__KEY", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("Duplicate key path or alias", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_AliasCollidesWithAnotherKeyPath_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                { "path": "Api:Key", "type": "string", "aliases": ["MY_API_KEY"] },
+                { "path": "MY_API_KEY", "type": "string" }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("Duplicate key path or alias", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_KeyRequiredAndForbiddenInSameEnvironment_ReturnsError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["staging"],
+                  "forbiddenIn": ["staging"]
+                }
+              ]
+            }
+            """);
+
+            var ok = ContractLoader.TryLoad(contractPath, out _, out var error);
+
+            Assert.False(ok);
+            Assert.Contains("both required and forbidden", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "configuard-tests", Guid.NewGuid().ToString("N"));

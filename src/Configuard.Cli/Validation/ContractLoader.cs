@@ -64,6 +64,11 @@ internal static class ContractLoader
                 return false;
             }
 
+            if (!TryValidateKeyRules(contract.Keys, out error))
+            {
+                return false;
+            }
+
             return true;
         }
         catch (JsonException ex)
@@ -76,5 +81,58 @@ internal static class ContractLoader
             error = $"Failed to load contract: {ex.Message}";
             return false;
         }
+    }
+
+    private static bool TryValidateKeyRules(IReadOnlyList<ContractKeyRule> keys, out string? error)
+    {
+        error = null;
+        var seenIdentifiers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var key in keys)
+        {
+            var canonicalPath = RuleEvaluation.NormalizePath(key.Path).Trim();
+            if (string.IsNullOrWhiteSpace(canonicalPath))
+            {
+                error = "keys[].path must not be empty.";
+                return false;
+            }
+
+            if (seenIdentifiers.TryGetValue(canonicalPath, out var existingOwner))
+            {
+                error = $"Duplicate key path or alias '{canonicalPath}' conflicts with '{existingOwner}'.";
+                return false;
+            }
+
+            seenIdentifiers[canonicalPath] = key.Path;
+
+            foreach (var alias in key.Aliases)
+            {
+                var canonicalAlias = RuleEvaluation.NormalizePath(alias).Trim();
+                if (string.IsNullOrWhiteSpace(canonicalAlias))
+                {
+                    error = $"Key '{key.Path}' contains an empty alias.";
+                    return false;
+                }
+
+                if (seenIdentifiers.TryGetValue(canonicalAlias, out existingOwner))
+                {
+                    error = $"Duplicate key path or alias '{canonicalAlias}' conflicts with '{existingOwner}'.";
+                    return false;
+                }
+
+                seenIdentifiers[canonicalAlias] = key.Path;
+            }
+
+            foreach (var env in key.RequiredIn)
+            {
+                if (key.ForbiddenIn.Contains(env, StringComparer.OrdinalIgnoreCase))
+                {
+                    error = $"Key '{key.Path}' cannot be both required and forbidden in environment '{env}'.";
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

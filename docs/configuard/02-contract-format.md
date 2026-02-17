@@ -84,6 +84,13 @@ Each item in `keys` defines one configuration requirement:
 - `requiredIn`: key must exist and satisfy type/constraints in these environments.
 - `forbiddenIn`: key must not be present in these environments.
 - If environment is in neither list, key is optional there.
+- A key must not list the same environment in both `requiredIn` and `forbiddenIn`.
+
+## Key Identifier Uniqueness
+
+- Each key `path` must be unique after normalization (`__` -> `:`).
+- Aliases participate in the same uniqueness set as key paths.
+- Path/alias collisions are rejected as contract input errors.
 
 ## Source Resolution Semantics
 
