@@ -131,7 +131,7 @@ configuard explain --contract ./configuard.contract.json --env production --key 
 
 - `quiet`: no normal command output.
 - `normal`: default output.
-- `detailed`: currently same as normal for explain.
+- `detailed`: includes extra diagnostics (`matchedRuleBy`, source order used, candidate paths checked).
 
 ### Exit Codes
 

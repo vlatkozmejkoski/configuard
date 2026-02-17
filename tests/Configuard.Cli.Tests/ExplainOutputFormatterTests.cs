@@ -52,4 +52,54 @@ public sealed class ExplainOutputFormatterTests
         Assert.Contains("Decision: FAIL (constraint_minLength)", text, StringComparison.Ordinal);
         Assert.Contains("Reason: String length is 3, minimum is 10.", text, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ToText_Detailed_IncludesDiagnostics()
+    {
+        var result = new ExplainResult
+        {
+            Environment = "staging",
+            RequestedKey = "API__KEY",
+            RulePath = "Api:Key",
+            RuleType = "string",
+            IsPass = true,
+            DecisionCode = "pass",
+            DecisionMessage = "Key satisfies all applicable rules.",
+            MatchedRuleBy = "alias",
+            SourceOrderUsed = [SourceKinds.DotEnv, SourceKinds.AppSettings],
+            CandidatePaths = ["Api:Key", "API:KEY"]
+        };
+
+        var text = ExplainOutputFormatter.ToText(result, detailed: true);
+
+        Assert.Contains("Matched rule by: alias", text, StringComparison.Ordinal);
+        Assert.Contains("Source order used: dotenv, appsettings", text, StringComparison.Ordinal);
+        Assert.Contains("Candidate paths: Api:Key, API:KEY", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToJson_Detailed_IncludesDiagnosticsObject()
+    {
+        var result = new ExplainResult
+        {
+            Environment = "production",
+            RequestedKey = "ConnectionStrings:Default",
+            RulePath = "ConnectionStrings:Default",
+            RuleType = "string",
+            IsPass = true,
+            DecisionCode = "pass",
+            DecisionMessage = "Key satisfies all applicable rules.",
+            MatchedRuleBy = "path",
+            SourceOrderUsed = [SourceKinds.EnvSnapshot, SourceKinds.AppSettings],
+            CandidatePaths = ["ConnectionStrings:Default"]
+        };
+
+        var json = ExplainOutputFormatter.ToJson(result, detailed: true);
+        using var document = JsonDocument.Parse(json);
+        var diagnostics = document.RootElement.GetProperty("diagnostics");
+
+        Assert.Equal("path", diagnostics.GetProperty("matchedRuleBy").GetString());
+        Assert.Equal("envsnapshot", diagnostics.GetProperty("sourceOrderUsed")[0].GetString());
+        Assert.Equal("ConnectionStrings:Default", diagnostics.GetProperty("candidatePaths")[0].GetString());
+    }
 }

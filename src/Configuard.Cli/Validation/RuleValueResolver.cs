@@ -59,6 +59,9 @@ internal static class RuleValueResolver
         return false;
     }
 
+    public static IReadOnlyList<string> GetEffectiveSourceOrder(ContractKeyRule keyRule) =>
+        [.. GetSourceOrder(keyRule)];
+
     private static IEnumerable<string> GetSourceOrder(ContractKeyRule keyRule)
     {
         if (keyRule.SourcePreference.Count == 0)

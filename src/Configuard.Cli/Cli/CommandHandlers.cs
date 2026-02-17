@@ -203,14 +203,14 @@ internal static class CommandHandlers
         {
             if (verbosity != Verbosity.Quiet)
             {
-                Console.WriteLine(ExplainOutputFormatter.ToJson(result!));
+                Console.WriteLine(ExplainOutputFormatter.ToJson(result!, detailed: verbosity == Verbosity.Detailed));
             }
         }
         else if (format == "text")
         {
             if (verbosity != Verbosity.Quiet)
             {
-                Console.WriteLine(ExplainOutputFormatter.ToText(result!));
+                Console.WriteLine(ExplainOutputFormatter.ToText(result!, detailed: verbosity == Verbosity.Detailed));
             }
         }
         else

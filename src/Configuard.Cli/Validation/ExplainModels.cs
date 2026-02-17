@@ -23,4 +23,10 @@ internal sealed class ExplainResult
     public required string DecisionCode { get; init; }
 
     public required string DecisionMessage { get; init; }
+
+    public string MatchedRuleBy { get; init; } = "path";
+
+    public IReadOnlyList<string> SourceOrderUsed { get; init; } = [];
+
+    public IReadOnlyList<string> CandidatePaths { get; init; } = [];
 }

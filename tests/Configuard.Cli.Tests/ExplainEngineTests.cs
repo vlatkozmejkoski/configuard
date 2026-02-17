@@ -224,6 +224,45 @@ public sealed class ExplainEngineTests
         }
     }
 
+    [Fact]
+    public void TryExplain_ReportsAliasRuleMatchAndDiagnostics()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), """
+            {
+              "Api": {
+                "Key": "abc-123"
+              }
+            }
+            """);
+
+            var contract = BuildContract(
+                new ContractKeyRule
+                {
+                    Path = "Api:Key",
+                    Aliases = ["API__KEY"],
+                    Type = "string",
+                    RequiredIn = ["staging"]
+                });
+
+            var ok = ExplainEngine.TryExplain(contract, tempDir, "staging", "API__KEY", out var result);
+
+            Assert.True(ok);
+            Assert.NotNull(result);
+            Assert.True(result!.IsPass);
+            Assert.Equal("alias", result.MatchedRuleBy);
+            Assert.Contains(SourceKinds.AppSettings, result.SourceOrderUsed);
+            Assert.Contains("Api:Key", result.CandidatePaths);
+            Assert.Contains(result.CandidatePaths, p => string.Equals(p, "API:KEY", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static ContractDocument BuildContract(
         ContractKeyRule key,
         bool includeDotEnv = false,

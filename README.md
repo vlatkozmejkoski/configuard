@@ -35,8 +35,7 @@ Implemented:
 
 In progress:
 
-- Additional source types beyond `appsettings*`
-- SARIF output and richer explain diagnostics
+- Additional source types beyond current contract-defined inputs
 
 ## Quick Start
 

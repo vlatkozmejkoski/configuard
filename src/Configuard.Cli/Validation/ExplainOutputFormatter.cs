@@ -9,7 +9,7 @@ internal static class ExplainOutputFormatter
         WriteIndented = true
     };
 
-    public static string ToText(ExplainResult result)
+    public static string ToText(ExplainResult result, bool detailed = false)
     {
         var lines = new List<string>
         {
@@ -42,10 +42,24 @@ internal static class ExplainOutputFormatter
             lines.Add($"Resolved value: {result.ResolvedValueDisplay}");
         }
 
+        if (detailed)
+        {
+            lines.Add($"Matched rule by: {result.MatchedRuleBy}");
+            if (result.SourceOrderUsed.Count > 0)
+            {
+                lines.Add($"Source order used: {string.Join(", ", result.SourceOrderUsed)}");
+            }
+
+            if (result.CandidatePaths.Count > 0)
+            {
+                lines.Add($"Candidate paths: {string.Join(", ", result.CandidatePaths)}");
+            }
+        }
+
         return string.Join(Environment.NewLine, lines);
     }
 
-    public static string ToJson(ExplainResult result)
+    public static string ToJson(ExplainResult result, bool detailed = false)
     {
         var payload = new
         {
@@ -69,7 +83,15 @@ internal static class ExplainOutputFormatter
                 resolvedSource = result.ResolvedSource,
                 resolvedFrom = result.ResolvedFrom,
                 resolvedValue = result.ResolvedValueDisplay
-            }
+            },
+            diagnostics = detailed
+                ? new
+                {
+                    matchedRuleBy = result.MatchedRuleBy,
+                    sourceOrderUsed = result.SourceOrderUsed,
+                    candidatePaths = result.CandidatePaths
+                }
+                : null
         };
 
         return JsonSerializer.Serialize(payload, JsonOptions);

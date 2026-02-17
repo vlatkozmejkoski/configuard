@@ -744,3 +744,30 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Provides fast feedback and regression protection before release tags are cut.
 - Keeps release workflow focused on publish/release concerns while CI covers day-to-day validation.
+
+## Step 33: Enrich `explain` diagnostics in detailed verbosity
+
+### What I changed
+
+- Extended `ExplainResult` with diagnostics fields:
+  - `MatchedRuleBy` (`path` or `alias`)
+  - `SourceOrderUsed`
+  - `CandidatePaths`
+- Updated explain engine to populate diagnostics for all decision outcomes.
+- Updated explain formatter:
+  - text: detailed mode prints matched-rule/source-order/candidate-path details
+  - json: detailed mode emits `diagnostics` object
+- Updated command handler to pass `--verbosity detailed` into explain formatters.
+
+### Tests added/updated
+
+- `ExplainEngineTests`:
+  - alias match and diagnostics coverage
+- `ExplainOutputFormatterTests`:
+  - detailed text diagnostics rendering
+  - detailed JSON diagnostics payload
+
+### Why
+
+- Makes explain output more actionable when debugging key resolution behavior.
+- Improves transparency for alias matching and source precedence decisions.
