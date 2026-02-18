@@ -8,8 +8,8 @@ internal static class RuleValueResolver
         out string resolvedPath,
         out ResolvedConfigValue? value)
     {
-        var candidates = RuleEvaluation.GetCandidatePaths(keyRule);
-        foreach (var source in GetSourceOrder(keyRule))
+        var candidates = KeyRuleResolutionCache.GetCandidatePaths(keyRule);
+        foreach (var source in KeyRuleResolutionCache.GetSourceOrder(keyRule))
         {
             var map = GetSourceMap(resolved, source);
             if (map is null)
@@ -34,32 +34,7 @@ internal static class RuleValueResolver
     }
 
     public static IReadOnlyList<string> GetEffectiveSourceOrder(ContractKeyRule keyRule) =>
-        [.. GetSourceOrder(keyRule)];
-
-    private static IEnumerable<string> GetSourceOrder(ContractKeyRule keyRule)
-    {
-        if (keyRule.SourcePreference.Count == 0)
-        {
-            return SourceKinds.DefaultOrder;
-        }
-
-        var order = new List<string>();
-        foreach (var source in keyRule.SourcePreference)
-        {
-            var normalized = source.Trim().ToLowerInvariant();
-            if (!SourceKinds.IsSupported(normalized))
-            {
-                continue;
-            }
-
-            if (!order.Contains(normalized, StringComparer.OrdinalIgnoreCase))
-            {
-                order.Add(normalized);
-            }
-        }
-
-        return order.Count == 0 ? SourceKinds.DefaultOrder : order;
-    }
+        [.. KeyRuleResolutionCache.GetSourceOrder(keyRule)];
 
     private static Dictionary<string, ResolvedConfigValue>? GetSourceMap(ResolvedConfigBySource resolved, string source)
     {

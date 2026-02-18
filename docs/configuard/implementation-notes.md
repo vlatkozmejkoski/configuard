@@ -1262,3 +1262,18 @@ This file captures incremental implementation decisions, with "what" and "why".
 ### Why
 
 - Packages accumulated stability/refactor and validation-hardening work into a consumable patch release.
+
+## Step 65: Add key-resolution metadata caching and large-contract regression coverage
+
+### What I changed
+
+- Added `KeyRuleResolutionCache` to cache per-key:
+  - normalized candidate paths
+  - effective source resolution order
+- Updated `RuleValueResolver` and `ExplainEngine` to use cached metadata instead of rebuilding these structures on every resolution call.
+- Added `ContractValidatorTests.Validate_LargeContractRegression_ProducesExpectedResult` with a 600-key scenario to guard high-volume behavior and expected result consistency.
+
+### Why
+
+- Reduces repeated normalization/allocation overhead in hot resolution paths used by `validate`, `diff`, and `explain`.
+- Adds confidence that large contracts remain stable while performance optimizations are introduced.

@@ -1,4 +1,5 @@
 using Configuard.Cli.Validation;
+using System.Text;
 using System.Text.Json;
 using static Configuard.Cli.Tests.TestHelpers;
 
@@ -554,6 +555,73 @@ public sealed class ContractValidatorTests
                 $"Issues: {string.Join("; ", result.Issues.Select(i => $"{i.Code}:{i.Path}:{i.Environment}"))}");
             Assert.Empty(result.Issues);
             Assert.Empty(result.Warnings);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Validate_LargeContractRegression_ProducesExpectedResult()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            const int keyCount = 600;
+            var json = new StringBuilder();
+            json.AppendLine("{");
+            json.AppendLine("  \"Perf\": {");
+            for (var i = 0; i < keyCount; i++)
+            {
+                var suffix = i == keyCount - 1 ? string.Empty : ",";
+                json.AppendLine($"    \"Key{i}\": \"value-{i}\"{suffix}");
+            }
+            json.AppendLine("  }");
+            json.AppendLine("}");
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), json.ToString());
+
+            var keys = new List<ContractKeyRule>(capacity: keyCount + 1);
+            for (var i = 0; i < keyCount; i++)
+            {
+                keys.Add(new ContractKeyRule
+                {
+                    Path = $"Perf:Key{i}",
+                    Type = "string",
+                    RequiredIn = ["staging"]
+                });
+            }
+
+            keys.Add(new ContractKeyRule
+            {
+                Path = "Perf:MissingKey",
+                Type = "string",
+                RequiredIn = ["staging"]
+            });
+
+            var contract = new ContractDocument
+            {
+                Version = "1",
+                Environments = ["staging"],
+                Sources = new ContractSources
+                {
+                    AppSettings = new AppSettingsSource
+                    {
+                        Base = "appsettings.json",
+                        EnvironmentPattern = "appsettings.{env}.json"
+                    }
+                },
+                Keys = keys
+            };
+
+            var result = ContractValidator.Validate(contract, tempDir, []);
+
+            Assert.False(result.IsSuccess);
+            Assert.Single(result.Issues);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal("missing_required", issue.Code);
+            Assert.Equal("Perf:MissingKey", issue.Path);
+            Assert.Equal("staging", issue.Environment);
         }
         finally
         {

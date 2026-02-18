@@ -19,7 +19,7 @@ internal static class ExplainEngine
         }
 
         var sourceOrderUsed = RuleValueResolver.GetEffectiveSourceOrder(keyRule);
-        var candidatePaths = RuleEvaluation.GetCandidatePaths(keyRule);
+        var candidatePaths = KeyRuleResolutionCache.GetCandidatePaths(keyRule);
         var resolvedValues = AppSettingsProvenanceResolver.Resolve(repoRoot, contract.Sources, environment);
         var found = RuleValueResolver.TryResolveValue(resolvedValues, keyRule, out var foundPath, out var foundValue);
 
