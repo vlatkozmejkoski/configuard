@@ -217,6 +217,12 @@ Use case: statically discover configuration key paths from C# code usage pattern
 dotnet run --project src/Configuard.Cli -- discover --path . --format json --output discover-report.json
 ```
 
+Safe apply mode (high-confidence additions only, no deletions):
+
+```bash
+dotnet run --project src/Configuard.Cli -- discover --path . --contract configuard.contract.json --apply
+```
+
 Scope control:
 
 ```bash
@@ -224,6 +230,7 @@ dotnet run --project src/Configuard.Cli -- discover --path . --include "src/**" 
 ```
 
 `--include` / `--exclude` use simple glob-style patterns against scan-relative file paths.
+`--apply` appends only high-confidence discovered keys that do not already match an existing key path or alias.
 
 Currently detected pattern examples:
 

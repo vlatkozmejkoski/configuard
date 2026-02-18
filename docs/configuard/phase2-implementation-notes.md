@@ -6,10 +6,9 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 ## Planned Next Additions (Rolling)
 
 1. Add deterministic output tests for larger multi-project layouts.
-2. Add `discover --apply` (high-confidence only, never delete existing keys).
-3. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
-4. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
-5. Add solution/project-level scoped discovery mode shortcuts.
+2. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
+3. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
+4. Add solution/project-level scoped discovery mode shortcuts.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -104,3 +103,24 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Makes discovery output easier to snapshot-test and compare in CI.
 - Reduces flaky diffs for repeated scans in larger nested repository layouts.
+
+## P2 Step 6: Add safe `discover --apply` contract merge mode
+
+### What I changed
+
+- Implemented `discover --apply` in command handling:
+  - requires/uses the contract path (`--contract` or default `configuard.contract.json`)
+  - merges only `high` confidence discovered keys
+  - never removes existing keys
+  - skips discoveries that already match an existing key path or alias
+- Contract update behavior:
+  - appends new key entries as `{ "path": "...", "type": "string" }`
+  - preserves existing contract shape and only mutates the `keys` array
+- Added command tests for:
+  - high-confidence-only merge behavior
+  - alias-aware duplicate prevention
+
+### Why
+
+- Delivers practical Phase 2 value by reducing manual key-entry work while staying conservative.
+- Keeps mutation safety high before introducing richer auto-typing or lower-confidence apply modes.

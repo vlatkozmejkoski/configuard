@@ -1,4 +1,5 @@
 using Configuard.Cli.Cli;
+using Configuard.Cli.Validation;
 using static Configuard.Cli.Tests.TestHelpers;
 
 namespace Configuard.Cli.Tests;
@@ -938,14 +939,47 @@ public sealed class CommandHandlersTests
     }
 
     [Fact]
-    public void Execute_DiscoverApplyNotImplemented_ReturnsInputError()
+    public void Execute_DiscoverApply_AddsOnlyHighConfidenceFindings_ReturnsSuccess()
     {
         var tempDir = CreateTempDirectory();
         try
         {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Existing:Key",
+                  "type": "string"
+                }
+              ]
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(tempDir, "sample.cs"), """
+            using Microsoft.Extensions.Configuration;
+
+            public class Sample
+            {
+                public void Configure(IConfiguration configuration, string suffix)
+                {
+                    var one = configuration["Api:Key"];
+                    var two = configuration.GetValue<string>("Dyn:" + suffix);
+                }
+            }
+            """);
+
             var command = new ParsedCommand(
                 Name: "discover",
-                ContractPath: null,
+                ContractPath: contractPath,
                 Environments: [],
                 OutputFormat: "json",
                 Verbosity: "quiet",
@@ -955,7 +989,70 @@ public sealed class CommandHandlersTests
 
             var code = CommandHandlers.Execute(command);
 
-            Assert.Equal(ExitCodes.InputError, code);
+            Assert.Equal(ExitCodes.Success, code);
+            var loaded = ContractLoader.TryLoad(contractPath, out var contract, out var loadError);
+            Assert.True(loaded, loadError);
+            Assert.NotNull(contract);
+            Assert.Contains(contract!.Keys, key => key.Path == "Existing:Key");
+            Assert.Contains(contract.Keys, key => key.Path == "Api:Key");
+            Assert.DoesNotContain(contract.Keys, key => key.Path == "Dyn:{expr}");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_DiscoverApply_DoesNotDuplicateAliasMatchedKeys_ReturnsSuccess()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Canonical:ApiKey",
+                  "aliases": ["Api:Key"],
+                  "type": "string"
+                }
+              ]
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(tempDir, "sample.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class Sample { public void Run(IConfiguration c) { var x = c["Api:Key"]; } }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: contractPath,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                Apply: true);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.Success, code);
+            var loaded = ContractLoader.TryLoad(contractPath, out var contract, out var loadError);
+            Assert.True(loaded, loadError);
+            Assert.NotNull(contract);
+            Assert.Single(contract!.Keys);
+            Assert.Equal("Canonical:ApiKey", contract.Keys[0].Path);
         }
         finally
         {

@@ -1,5 +1,7 @@
 using Configuard.Cli.Validation;
 using Configuard.Cli.Discovery;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Configuard.Cli.Cli;
 
@@ -198,12 +200,6 @@ internal static class CommandHandlers
             return ExitCodes.InputError;
         }
 
-        if (command.Apply)
-        {
-            Console.Error.WriteLine("discover --apply is not implemented yet.");
-            return ExitCodes.InputError;
-        }
-
         var requestedFormat = string.IsNullOrWhiteSpace(command.OutputFormat)
             ? "json"
             : command.OutputFormat;
@@ -234,6 +230,18 @@ internal static class CommandHandlers
             return ExitCodes.InternalError;
         }
 
+        if (command.Apply)
+        {
+            var contractPath = command.ContractPath ?? "configuard.contract.json";
+            if (!TryApplyDiscoverFindings(contractPath, report, out var addedCount, out var applyError))
+            {
+                Console.Error.WriteLine(applyError);
+                return ExitCodes.InputError;
+            }
+
+            WriteIfNotQuiet(verbosity, () => $"Applied {addedCount} discovered key(s) to {contractPath}.");
+        }
+
         var json = DiscoverOutputFormatter.ToJson(report);
         if (!string.IsNullOrWhiteSpace(command.OutputPath))
         {
@@ -244,6 +252,84 @@ internal static class CommandHandlers
 
         WriteIfNotQuiet(verbosity, () => json);
         return ExitCodes.Success;
+    }
+
+    private static bool TryApplyDiscoverFindings(
+        string contractPath,
+        DiscoveryReport report,
+        out int addedCount,
+        out string? error)
+    {
+        addedCount = 0;
+        error = null;
+
+        if (!ContractLoader.TryLoad(contractPath, out var contract, out var loadError))
+        {
+            error = loadError;
+            return false;
+        }
+
+        var existingIdentifiers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in contract!.Keys)
+        {
+            existingIdentifiers.Add(RuleEvaluation.NormalizePath(key.Path).Trim());
+            foreach (var alias in key.Aliases)
+            {
+                existingIdentifiers.Add(RuleEvaluation.NormalizePath(alias).Trim());
+            }
+        }
+
+        var toAdd = report.Findings
+            .Where(finding => string.Equals(finding.Confidence, "high", StringComparison.Ordinal))
+            .Select(finding => RuleEvaluation.NormalizePath(finding.Path).Trim())
+            .Where(path => !existingIdentifiers.Contains(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (toAdd.Count == 0)
+        {
+            return true;
+        }
+
+        JsonNode? rootNode;
+        try
+        {
+            rootNode = JsonNode.Parse(File.ReadAllText(contractPath));
+        }
+        catch (JsonException ex)
+        {
+            error = $"Contract JSON parse error: {ex.Message}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load contract for apply: {ex.Message}";
+            return false;
+        }
+
+        var rootObject = rootNode as JsonObject;
+        var keysArray = rootObject?["keys"] as JsonArray;
+        if (keysArray is null)
+        {
+            error = "Contract must define a 'keys' array for discover --apply.";
+            return false;
+        }
+
+        foreach (var path in toAdd)
+        {
+            keysArray.Add(new JsonObject
+            {
+                ["path"] = path,
+                ["type"] = "string"
+            });
+        }
+
+        File.WriteAllText(
+            contractPath,
+            rootObject!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+        addedCount = toAdd.Count;
+        return true;
     }
 
     private static bool TryNormalizeVerbosity(string? rawVerbosity, out string verbosity)
