@@ -217,6 +217,14 @@ Use case: statically discover configuration key paths from C# code usage pattern
 dotnet run --project src/Configuard.Cli -- discover --path . --format json --output discover-report.json
 ```
 
+Scope control:
+
+```bash
+dotnet run --project src/Configuard.Cli -- discover --path . --include "src/**" --exclude "**/obj/**" --exclude "**/bin/**" --output discover-report.json
+```
+
+`--include` / `--exclude` use simple glob-style patterns against scan-relative file paths.
+
 Currently detected pattern examples:
 
 - `configuration["A:B"]`

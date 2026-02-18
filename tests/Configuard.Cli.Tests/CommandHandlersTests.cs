@@ -1004,4 +1004,46 @@ public class Sample
         }
     }
 
+    [Fact]
+    public void Execute_DiscoverIncludeExcludeFilters_AffectFindings()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var apiDir = Path.Combine(tempDir, "Api");
+            var ignoredDir = Path.Combine(tempDir, "Ignored");
+            Directory.CreateDirectory(apiDir);
+            Directory.CreateDirectory(ignoredDir);
+
+            File.WriteAllText(Path.Combine(apiDir, "ApiSettings.cs"), @"using Microsoft.Extensions.Configuration;
+public class ApiSettings { public void Run(IConfiguration c) { var x = c[""Api:Key""]; } }");
+            File.WriteAllText(Path.Combine(ignoredDir, "IgnoredSettings.cs"), @"using Microsoft.Extensions.Configuration;
+public class IgnoredSettings { public void Run(IConfiguration c) { var x = c[""Ignored:Key""]; } }");
+
+            var outputPath = Path.Combine(tempDir, "discover.json");
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: null,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                OutputPath: outputPath,
+                IncludePatterns: ["Api/**"],
+                ExcludePatterns: ["Ignored/**"]);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.Success, code);
+            var report = File.ReadAllText(outputPath);
+            Assert.Contains("\"Api:Key\"", report, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"Ignored:Key\"", report, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

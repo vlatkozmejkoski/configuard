@@ -5,11 +5,11 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 ## Planned Next Additions (Rolling)
 
-1. Add include/exclude filtering for discovery scope (projects/directories).
-2. Add deterministic output tests for larger multi-project layouts.
-3. Add `discover --apply` (high-confidence only, never delete existing keys).
-4. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
-5. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
+1. Add deterministic output tests for larger multi-project layouts.
+2. Add `discover --apply` (high-confidence only, never delete existing keys).
+3. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
+4. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
+5. Add solution/project-level scoped discovery mode shortcuts.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -70,3 +70,21 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Improves discovery usefulness for realistic code that partially composes keys while keeping uncertainty transparent.
 - Creates a clear foundation for future confidence expansion (`low`) and safer `--apply` behavior.
+
+## P2 Step 4: Add discover scope filters (`--include` / `--exclude`)
+
+### What I changed
+
+- Added discover command parser support for repeatable:
+  - `--include <glob>`
+  - `--exclude <glob>`
+- Added file-level glob filtering in discovery engine prior to syntax parsing.
+- Added tests for:
+  - parser include/exclude capture
+  - engine include/exclude behavior
+  - command-level filtered report output behavior
+
+### Why
+
+- Improves signal quality on large repos by allowing teams to constrain discovery scope.
+- Reduces unnecessary parse work by filtering file candidates early.

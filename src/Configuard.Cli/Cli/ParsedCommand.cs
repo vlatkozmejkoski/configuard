@@ -10,4 +10,6 @@ internal sealed record ParsedCommand(
     bool NoColor = false,
     string? ScanPath = null,
     string? OutputPath = null,
-    bool Apply = false);
+    bool Apply = false,
+    IReadOnlyList<string>? IncludePatterns = null,
+    IReadOnlyList<string>? ExcludePatterns = null);

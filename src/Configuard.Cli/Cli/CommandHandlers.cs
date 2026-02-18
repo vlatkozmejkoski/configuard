@@ -223,7 +223,10 @@ internal static class CommandHandlers
         DiscoveryReport report;
         try
         {
-            report = DiscoverEngine.Discover(fullScanPath);
+            report = DiscoverEngine.Discover(
+                fullScanPath,
+                includePatterns: command.IncludePatterns,
+                excludePatterns: command.ExcludePatterns);
         }
         catch (Exception ex)
         {

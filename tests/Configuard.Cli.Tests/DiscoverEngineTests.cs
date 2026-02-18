@@ -145,4 +145,39 @@ public sealed class DiscoverEngineTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Discover_IncludeExcludePatterns_FilterFiles()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var keepDir = Path.Combine(tempDir, "Keep");
+            var skipDir = Path.Combine(tempDir, "Skip");
+            Directory.CreateDirectory(keepDir);
+            Directory.CreateDirectory(skipDir);
+
+            File.WriteAllText(Path.Combine(keepDir, "One.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class One { public void Run(IConfiguration c) { var x = c["Keep:Key"]; } }
+            """);
+
+            File.WriteAllText(Path.Combine(skipDir, "Two.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class Two { public void Run(IConfiguration c) { var x = c["Skip:Key"]; } }
+            """);
+
+            var report = DiscoverEngine.Discover(
+                tempDir,
+                includePatterns: ["Keep/**", "Skip/**"],
+                excludePatterns: ["Skip/**"]);
+
+            Assert.Contains(report.Findings, finding => finding.Path == "Keep:Key");
+            Assert.DoesNotContain(report.Findings, finding => finding.Path == "Skip:Key");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

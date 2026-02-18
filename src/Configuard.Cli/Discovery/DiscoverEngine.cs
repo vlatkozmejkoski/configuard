@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,10 +12,17 @@ internal static class DiscoverEngine
     private const string MediumConfidence = "medium";
     private const string UnresolvedSegmentNote = "Contains unresolved dynamic segment(s).";
 
-    public static DiscoveryReport Discover(string scanPath)
+    public static DiscoveryReport Discover(
+        string scanPath,
+        IReadOnlyList<string>? includePatterns = null,
+        IReadOnlyList<string>? excludePatterns = null)
     {
         var fullScanPath = Path.GetFullPath(scanPath);
-        var files = CollectCSharpFiles(fullScanPath)
+        var files = ApplyFileFilters(
+                CollectCSharpFiles(fullScanPath),
+                fullScanPath,
+                includePatterns,
+                excludePatterns)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -102,6 +110,62 @@ internal static class DiscoverEngine
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) &&
                            !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase));
     }
+
+    private static IEnumerable<string> ApplyFileFilters(
+        IEnumerable<string> files,
+        string scanPath,
+        IReadOnlyList<string>? includePatterns,
+        IReadOnlyList<string>? excludePatterns)
+    {
+        var includes = NormalizePatterns(includePatterns);
+        var excludes = NormalizePatterns(excludePatterns);
+
+        foreach (var file in files)
+        {
+            var relativePath = NormalizePath(Path.GetRelativePath(scanPath, file));
+
+            if (includes.Count > 0 && !includes.Any(pattern => GlobMatches(pattern, relativePath)))
+            {
+                continue;
+            }
+
+            if (excludes.Count > 0 && excludes.Any(pattern => GlobMatches(pattern, relativePath)))
+            {
+                continue;
+            }
+
+            yield return file;
+        }
+    }
+
+    private static List<string> NormalizePatterns(IReadOnlyList<string>? patterns)
+    {
+        if (patterns is null || patterns.Count == 0)
+        {
+            return [];
+        }
+
+        return patterns
+            .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
+            .Select(NormalizePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool GlobMatches(string pattern, string relativePath)
+    {
+        var regexPattern = "^" +
+                           Regex.Escape(pattern)
+                               .Replace(@"\*\*", ".*", StringComparison.Ordinal)
+                               .Replace(@"\*", @"[^/]*", StringComparison.Ordinal)
+                               .Replace(@"\?", @"[^/]", StringComparison.Ordinal) +
+                           "$";
+
+        return Regex.IsMatch(relativePath, regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static string NormalizePath(string path) =>
+        path.Replace('\\', '/');
 
     private static IEnumerable<DiscoveryMatch> FindMatches(SyntaxNode root, string filePath, string scanRoot)
     {

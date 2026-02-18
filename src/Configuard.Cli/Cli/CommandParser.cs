@@ -31,6 +31,8 @@ internal static class CommandParser
         var apply = false;
         var noColor = false;
         var envs = new List<string>();
+        var includePatterns = new List<string>();
+        var excludePatterns = new List<string>();
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -90,6 +92,22 @@ internal static class CommandParser
                 case "--apply":
                     apply = true;
                     break;
+                case "--include":
+                    if (!TryReadValue(args, ref i, token, out var includePattern, out error))
+                    {
+                        return false;
+                    }
+
+                    includePatterns.Add(includePattern!);
+                    break;
+                case "--exclude":
+                    if (!TryReadValue(args, ref i, token, out var excludePattern, out error))
+                    {
+                        return false;
+                    }
+
+                    excludePatterns.Add(excludePattern!);
+                    break;
                 case "--no-color":
                     noColor = true;
                     break;
@@ -109,7 +127,9 @@ internal static class CommandParser
             NoColor: noColor,
             ScanPath: scanPath,
             OutputPath: outputPath,
-            Apply: apply);
+            Apply: apply,
+            IncludePatterns: new ReadOnlyCollection<string>(includePatterns),
+            ExcludePatterns: new ReadOnlyCollection<string>(excludePatterns));
         return true;
     }
 

@@ -131,4 +131,22 @@ public sealed class CommandParserTests
         Assert.Equal("json", command.OutputFormat);
         Assert.True(command.Apply);
     }
+
+    [Fact]
+    public void TryParse_DiscoverCommand_ParsesIncludeExcludePatterns()
+    {
+        var ok = CommandParser.TryParse(
+            ["discover", "--path", "src", "--include", "**/Api/*.cs", "--include", "**/Features/*.cs", "--exclude", "**/obj/**"],
+            out var command,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        Assert.NotNull(command);
+        Assert.Equal("discover", command!.Name);
+        Assert.Equal(2, command.IncludePatterns!.Count);
+        Assert.Single(command.ExcludePatterns!);
+        Assert.Contains("**/Api/*.cs", command.IncludePatterns!);
+        Assert.Contains("**/obj/**", command.ExcludePatterns!);
+    }
 }
