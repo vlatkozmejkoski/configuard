@@ -7,6 +7,10 @@ namespace Configuard.Cli.Discovery;
 
 internal static class DiscoverEngine
 {
+    private const string HighConfidence = "high";
+    private const string MediumConfidence = "medium";
+    private const string UnresolvedSegmentNote = "Contains unresolved dynamic segment(s).";
+
     public static DiscoveryReport Discover(string scanPath)
     {
         var fullScanPath = Path.GetFullPath(scanPath);
@@ -25,10 +29,23 @@ internal static class DiscoverEngine
                     finding = new DiscoveredKeyFinding
                     {
                         Path = match.Path,
-                        Confidence = "high",
+                        Confidence = match.Confidence,
                         SuggestedType = "string"
                     };
+                    finding.Notes.AddRange(match.Notes);
                     findingsByPath[match.Path] = finding;
+                }
+                else if (GetConfidenceRank(match.Confidence) > GetConfidenceRank(finding.Confidence))
+                {
+                    finding.Confidence = match.Confidence;
+                }
+
+                foreach (var note in match.Notes)
+                {
+                    if (!finding.Notes.Contains(note, StringComparer.Ordinal))
+                    {
+                        finding.Notes.Add(note);
+                    }
                 }
 
                 if (!finding.Evidence.Any(e =>
@@ -90,7 +107,7 @@ internal static class DiscoverEngine
     {
         foreach (var elementAccess in root.DescendantNodes().OfType<ElementAccessExpressionSyntax>())
         {
-            var keyPath = ReadFirstStringArgument(elementAccess.ArgumentList?.Arguments);
+            var keyPath = TryResolveFirstPathArgument(elementAccess.ArgumentList?.Arguments);
             if (keyPath is null)
             {
                 continue;
@@ -114,7 +131,7 @@ internal static class DiscoverEngine
             var methodName = memberAccess.Name.Identifier.Text;
             if (methodName is "GetValue" or "GetSection")
             {
-                var keyPath = ReadFirstStringArgument(invocation.ArgumentList.Arguments);
+                var keyPath = TryResolveFirstPathArgument(invocation.ArgumentList.Arguments);
                 if (keyPath is null)
                 {
                     continue;
@@ -158,7 +175,7 @@ internal static class DiscoverEngine
                 };
 
                 yield return BuildMatch(
-                    bindPath.Path,
+                    bindPath.PathResolution,
                     filePath,
                     scanRoot,
                     symbol: GetSymbol(invocation),
@@ -168,14 +185,16 @@ internal static class DiscoverEngine
     }
 
     private static DiscoveryMatch BuildMatch(
-        string keyPath,
+        PathResolution pathResolution,
         string filePath,
         string scanRoot,
         string symbol,
         string pattern)
     {
         return new DiscoveryMatch(
-            Path: RuleEvaluation.NormalizePath(keyPath).Trim(),
+            Path: RuleEvaluation.NormalizePath(pathResolution.Path).Trim(),
+            Confidence: pathResolution.Confidence,
+            Notes: pathResolution.Notes,
             Evidence: new DiscoveryEvidence
             {
                 File = Path.GetRelativePath(scanRoot, filePath),
@@ -184,20 +203,17 @@ internal static class DiscoverEngine
             });
     }
 
-    private static string? ReadFirstStringArgument(SeparatedSyntaxList<ArgumentSyntax>? arguments)
+    private static PathResolution? TryResolveFirstPathArgument(SeparatedSyntaxList<ArgumentSyntax>? arguments)
     {
         if (arguments is null || arguments.Value.Count == 0)
         {
             return null;
         }
 
-        return arguments.Value[0].Expression is LiteralExpressionSyntax literal &&
-               literal.IsKind(SyntaxKind.StringLiteralExpression)
-            ? literal.Token.ValueText
-            : null;
+        return TryResolvePath(arguments.Value[0].Expression);
     }
 
-    private static string? TryReadConfigureSectionPath(InvocationExpressionSyntax configureInvocation)
+    private static PathResolution? TryReadConfigureSectionPath(InvocationExpressionSyntax configureInvocation)
     {
         if (configureInvocation.ArgumentList.Arguments.Count == 0)
         {
@@ -212,7 +228,7 @@ internal static class DiscoverEngine
             return null;
         }
 
-        return ReadFirstStringArgument(nestedInvocation.ArgumentList.Arguments);
+        return TryResolveFirstPathArgument(nestedInvocation.ArgumentList.Arguments);
     }
 
     private static BindPath? TryReadBindPath(InvocationExpressionSyntax bindInvocation)
@@ -223,17 +239,17 @@ internal static class DiscoverEngine
         }
 
         var firstArgument = bindInvocation.ArgumentList.Arguments[0].Expression;
-        if (firstArgument is LiteralExpressionSyntax literal &&
-            literal.IsKind(SyntaxKind.StringLiteralExpression))
+        var directPath = TryResolvePath(firstArgument);
+        if (directPath is not null)
         {
-            return new BindPath(literal.Token.ValueText, BindPathSource.Literal);
+            return new BindPath(directPath, BindPathSource.Literal);
         }
 
         if (firstArgument is InvocationExpressionSyntax nestedInvocation &&
             nestedInvocation.Expression is MemberAccessExpressionSyntax nestedMember &&
             string.Equals(nestedMember.Name.Identifier.Text, "GetSection", StringComparison.Ordinal))
         {
-            var path = ReadFirstStringArgument(nestedInvocation.ArgumentList.Arguments);
+            var path = TryResolveFirstPathArgument(nestedInvocation.ArgumentList.Arguments);
             return path is null
                 ? null
                 : new BindPath(path, BindPathSource.GetSection);
@@ -259,12 +275,127 @@ internal static class DiscoverEngine
         return type?.Identifier.ValueText ?? "(unknown)";
     }
 
+    private static PathResolution? TryResolvePath(ExpressionSyntax expression)
+    {
+        return expression switch
+        {
+            LiteralExpressionSyntax literal when literal.IsKind(SyntaxKind.StringLiteralExpression) =>
+                new PathResolution(literal.Token.ValueText, HighConfidence, []),
+            ParenthesizedExpressionSyntax parenthesized => TryResolvePath(parenthesized.Expression),
+            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.AddExpression) =>
+                TryResolveBinaryPath(binary),
+            InterpolatedStringExpressionSyntax interpolated =>
+                TryResolveInterpolatedPath(interpolated),
+            _ => null
+        };
+    }
+
+    private static PathResolution? TryResolveBinaryPath(BinaryExpressionSyntax binary)
+    {
+        var left = TryResolvePath(binary.Left);
+        var right = TryResolvePath(binary.Right);
+        if (left is null && right is null)
+        {
+            return null;
+        }
+
+        var notes = new List<string>();
+        if (left is not null)
+        {
+            notes.AddRange(left.Notes);
+        }
+
+        if (right is not null)
+        {
+            notes.AddRange(right.Notes);
+        }
+
+        var hasUnresolvedSegment = left is null || right is null;
+        if (hasUnresolvedSegment && !notes.Contains(UnresolvedSegmentNote, StringComparer.Ordinal))
+        {
+            notes.Add(UnresolvedSegmentNote);
+        }
+
+        var path = $"{left?.Path ?? "{expr}"}{right?.Path ?? "{expr}"}";
+        var confidence = hasUnresolvedSegment ||
+                         string.Equals(left?.Confidence, MediumConfidence, StringComparison.Ordinal) ||
+                         string.Equals(right?.Confidence, MediumConfidence, StringComparison.Ordinal)
+            ? MediumConfidence
+            : HighConfidence;
+
+        return new PathResolution(path, confidence, notes);
+    }
+
+    private static PathResolution? TryResolveInterpolatedPath(InterpolatedStringExpressionSyntax interpolated)
+    {
+        var parts = new List<string>();
+        var notes = new List<string>();
+        var hasUnresolvedSegment = false;
+
+        foreach (var content in interpolated.Contents)
+        {
+            if (content is InterpolatedStringTextSyntax text)
+            {
+                parts.Add(text.TextToken.ValueText);
+                continue;
+            }
+
+            if (content is not InterpolationSyntax interpolation)
+            {
+                continue;
+            }
+
+            var interpolationPath = TryResolvePath(interpolation.Expression);
+            if (interpolationPath is null)
+            {
+                parts.Add("{expr}");
+                hasUnresolvedSegment = true;
+                continue;
+            }
+
+            parts.Add(interpolationPath.Path);
+            notes.AddRange(interpolationPath.Notes);
+            if (string.Equals(interpolationPath.Confidence, MediumConfidence, StringComparison.Ordinal))
+            {
+                hasUnresolvedSegment = true;
+            }
+        }
+
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        if (hasUnresolvedSegment && !notes.Contains(UnresolvedSegmentNote, StringComparer.Ordinal))
+        {
+            notes.Add(UnresolvedSegmentNote);
+        }
+
+        return new PathResolution(
+            Path: string.Concat(parts),
+            Confidence: hasUnresolvedSegment ? MediumConfidence : HighConfidence,
+            Notes: notes);
+    }
+
+    private static int GetConfidenceRank(string confidence) =>
+        confidence switch
+        {
+            HighConfidence => 2,
+            MediumConfidence => 1,
+            _ => 0
+        };
+
     private enum BindPathSource
     {
         Literal,
         GetSection
     }
 
-    private sealed record BindPath(string Path, BindPathSource Source);
-    private sealed record DiscoveryMatch(string Path, DiscoveryEvidence Evidence);
+    private sealed record PathResolution(string Path, string Confidence, IReadOnlyList<string> Notes);
+    private sealed record BindPath(PathResolution PathResolution, BindPathSource Source);
+    private sealed record DiscoveryMatch(
+        string Path,
+        string Confidence,
+        IReadOnlyList<string> Notes,
+        DiscoveryEvidence Evidence);
 }

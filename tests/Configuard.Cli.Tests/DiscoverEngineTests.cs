@@ -115,4 +115,34 @@ public sealed class DiscoverEngineTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Discover_ComposedPathExpression_IsReportedAsMediumConfidenceWithNote()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "Composed.cs"), """
+            using Microsoft.Extensions.Configuration;
+
+            public class Composed
+            {
+                public void Run(IConfiguration configuration, string suffix)
+                {
+                    var key = configuration.GetValue<string>("Api:" + suffix);
+                }
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            var finding = Assert.Single(report.Findings, finding => finding.Path == "Api:{expr}");
+            Assert.Equal("medium", finding.Confidence);
+            Assert.Contains("Contains unresolved dynamic segment(s).", finding.Notes);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

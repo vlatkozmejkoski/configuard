@@ -5,11 +5,11 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 ## Planned Next Additions (Rolling)
 
-1. Add confidence grading beyond literal-only (`medium` for partial constant composition).
-2. Add include/exclude filtering for discovery scope (projects/directories).
-3. Add deterministic output tests for larger multi-project layouts.
-4. Add `discover --apply` (high-confidence only, never delete existing keys).
-5. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
+1. Add include/exclude filtering for discovery scope (projects/directories).
+2. Add deterministic output tests for larger multi-project layouts.
+3. Add `discover --apply` (high-confidence only, never delete existing keys).
+4. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
+5. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -52,3 +52,21 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Covers a high-frequency real-world .NET configuration style beyond direct indexer/get-value access.
 - Improves discovery utility early while remaining deterministic and read-only.
+
+## P2 Step 3: Add confidence grading for composed path expressions
+
+### What I changed
+
+- Added path-expression resolution for discovery arguments:
+  - string literal (`high`)
+  - binary string concatenation
+  - interpolated string
+  - parenthesized expression passthrough
+- Added `medium` confidence + note (`Contains unresolved dynamic segment(s).`) when only partial path composition is statically resolvable (e.g. `"Api:" + suffix`).
+- Merged confidence/notes into findings deterministically while preserving strongest confidence observed for a discovered key path.
+- Added test coverage for composed-expression confidence behavior.
+
+### Why
+
+- Improves discovery usefulness for realistic code that partially composes keys while keeping uncertainty transparent.
+- Creates a clear foundation for future confidence expansion (`low`) and safer `--apply` behavior.

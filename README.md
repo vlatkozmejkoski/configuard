@@ -226,6 +226,11 @@ Currently detected pattern examples:
 - `configuration.Bind("A:B", target)`
 - `services.AddOptions<T>().Bind(configuration.GetSection("A:B"))`
 
+Discovery confidence:
+
+- `high`: fully literal path discovery.
+- `medium`: partially composed expression with unresolved dynamic segments (annotated with notes in report).
+
 ## Contract File
 
 Default contract path: `configuard.contract.json`

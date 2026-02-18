@@ -11,7 +11,7 @@ internal sealed class DiscoveryReport
 internal sealed class DiscoveredKeyFinding
 {
     public string Path { get; init; } = string.Empty;
-    public string Confidence { get; init; } = "high";
+    public string Confidence { get; set; } = "high";
     public string SuggestedType { get; init; } = "string";
     public List<DiscoveryEvidence> Evidence { get; init; } = [];
     public List<string> Notes { get; init; } = [];
