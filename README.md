@@ -90,6 +90,7 @@ Then run:
 
 ```bash
 configuard --help
+configuard --version
 ```
 
 Pre-release verification:

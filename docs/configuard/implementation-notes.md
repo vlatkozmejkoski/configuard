@@ -1290,3 +1290,17 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Validates end-to-end command behavior (exit code mapping and resolution semantics), not only engine-level unit paths.
 - Protects against regressions where source precedence is accidentally changed during performance/refactor work.
+
+## Step 67: Add explicit CLI version flag support
+
+### What I changed
+
+- Added `configuard --version`/`-v`/`version` handling in `Program`.
+- Added `CliVersionProvider` to centralize display-version retrieval and strip build metadata suffix (`+...`) for clean CLI output.
+- Added unit test `CliVersionProviderTests.GetDisplayVersion_ReturnsNonEmptyVersionWithoutBuildMetadata`.
+- Updated README install usage snippet to include `configuard --version`.
+
+### Why
+
+- Provides a script-friendly way to verify installed tool version in CI/local debugging.
+- Keeps version formatting logic centralized and reusable for future help/banner improvements.
