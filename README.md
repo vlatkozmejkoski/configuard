@@ -239,6 +239,11 @@ Discovery confidence:
 - `high`: fully literal path discovery.
 - `medium`: partially composed expression with unresolved dynamic segments (annotated with notes in report).
 
+Deterministic report behavior:
+
+- Findings and evidence are emitted in stable sorted order for repeatable output.
+- `generatedAtUtc` is sourced via an internal clock provider seam to support deterministic tests.
+
 ## Contract File
 
 Default contract path: `configuard.contract.json`

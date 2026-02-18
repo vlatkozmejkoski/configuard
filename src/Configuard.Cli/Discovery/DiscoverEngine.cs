@@ -12,6 +12,8 @@ internal static class DiscoverEngine
     private const string MediumConfidence = "medium";
     private const string UnresolvedSegmentNote = "Contains unresolved dynamic segment(s).";
 
+    public static Func<DateTimeOffset> UtcNowProvider { get; set; } = () => DateTimeOffset.UtcNow;
+
     public static DiscoveryReport Discover(
         string scanPath,
         IReadOnlyList<string>? includePatterns = null,
@@ -91,7 +93,7 @@ internal static class DiscoverEngine
         {
             Version = "1",
             ScanPath = fullScanPath,
-            GeneratedAtUtc = DateTimeOffset.UtcNow,
+            GeneratedAtUtc = UtcNowProvider(),
             Findings = findings
         };
     }
@@ -145,11 +147,10 @@ internal static class DiscoverEngine
             return [];
         }
 
-        return patterns
+        return [.. patterns
             .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
             .Select(NormalizePath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
     }
 
     private static bool GlobMatches(string pattern, string relativePath)

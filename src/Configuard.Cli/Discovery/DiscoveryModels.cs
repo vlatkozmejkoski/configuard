@@ -4,7 +4,7 @@ internal sealed class DiscoveryReport
 {
     public string Version { get; init; } = "1";
     public string ScanPath { get; init; } = string.Empty;
-    public DateTimeOffset GeneratedAtUtc { get; init; }
+    public DateTimeOffset GeneratedAtUtc { get; set; }
     public List<DiscoveredKeyFinding> Findings { get; init; } = [];
 }
 

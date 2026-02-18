@@ -88,3 +88,19 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Improves signal quality on large repos by allowing teams to constrain discovery scope.
 - Reduces unnecessary parse work by filtering file candidates early.
+
+## P2 Step 5: Deterministic output hardening for discovery reports
+
+### What I changed
+
+- Added a deterministic timestamp injection seam in discovery:
+  - `DiscoverEngine.UtcNowProvider` (defaults to `DateTimeOffset.UtcNow`)
+  - report generation now reads `GeneratedAtUtc` from the provider
+- Added deterministic behavior tests:
+  - fixed-time provider test validates repeatable `GeneratedAtUtc`
+  - multi-folder ordering test validates stable findings order across runs
+
+### Why
+
+- Makes discovery output easier to snapshot-test and compare in CI.
+- Reduces flaky diffs for repeated scans in larger nested repository layouts.
