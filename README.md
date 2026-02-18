@@ -249,6 +249,19 @@ Discovery confidence:
 - `medium`: partially composed expression with unresolved dynamic segments (annotated with notes in report).
 - `low`: unresolved runtime indirection (path placeholder only, annotated with notes in report).
 
+## Local Playground Example
+
+Use `examples/local-playground` to quickly try the tool in a throwaway solution:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\examples\local-playground\create-sample-solution.ps1 -Root .\playground
+cd .\playground
+dotnet tool run configuard validate --contract .\configuard.contract.json --env staging --env production
+dotnet tool run configuard discover --path .\Playground.sln --format json --output .\discover-report.json
+```
+
+Full walkthrough: `examples/local-playground/README.md`.
+
 Deterministic report behavior:
 
 - Findings and evidence are emitted in stable sorted order for repeatable output.
