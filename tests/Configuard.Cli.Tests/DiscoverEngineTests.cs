@@ -300,4 +300,68 @@ public sealed class DiscoverEngineTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Discover_PathAsSolutionFile_ScansSolutionDirectory()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var apiDir = Path.Combine(tempDir, "Api");
+            var workerDir = Path.Combine(tempDir, "Worker");
+            Directory.CreateDirectory(apiDir);
+            Directory.CreateDirectory(workerDir);
+
+            File.WriteAllText(Path.Combine(tempDir, "Configuard.sln"), "Microsoft Visual Studio Solution File");
+            File.WriteAllText(Path.Combine(apiDir, "ApiConfig.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class ApiConfig { public void Run(IConfiguration c) { var x = c["Api:Key"]; } }
+            """);
+            File.WriteAllText(Path.Combine(workerDir, "WorkerConfig.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class WorkerConfig { public void Run(IConfiguration c) { var x = c["Worker:Key"]; } }
+            """);
+
+            var report = DiscoverEngine.Discover(Path.Combine(tempDir, "Configuard.sln"));
+
+            Assert.Contains(report.Findings, finding => finding.Path == "Api:Key");
+            Assert.Contains(report.Findings, finding => finding.Path == "Worker:Key");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Discover_PathAsProjectFile_ScansOnlyProjectDirectory()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var projectDir = Path.Combine(tempDir, "Src", "App");
+            var externalDir = Path.Combine(tempDir, "Src", "External");
+            Directory.CreateDirectory(projectDir);
+            Directory.CreateDirectory(externalDir);
+
+            File.WriteAllText(Path.Combine(projectDir, "App.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+            File.WriteAllText(Path.Combine(projectDir, "AppConfig.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class AppConfig { public void Run(IConfiguration c) { var x = c["Project:Key"]; } }
+            """);
+            File.WriteAllText(Path.Combine(externalDir, "ExternalConfig.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class ExternalConfig { public void Run(IConfiguration c) { var x = c["External:Key"]; } }
+            """);
+
+            var report = DiscoverEngine.Discover(Path.Combine(projectDir, "App.csproj"));
+
+            Assert.Contains(report.Findings, finding => finding.Path == "Project:Key");
+            Assert.DoesNotContain(report.Findings, finding => finding.Path == "External:Key");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

@@ -231,6 +231,7 @@ dotnet run --project src/Configuard.Cli -- discover --path . --include "src/**" 
 
 `--include` / `--exclude` use simple glob-style patterns against scan-relative file paths.
 `--apply` appends only high-confidence discovered keys that do not already match an existing key path or alias.
+`--path` accepts a directory, a single `.cs` file, a `.csproj` (scans that project directory), or a `.sln` (scans the solution directory).
 
 Currently detected pattern examples:
 

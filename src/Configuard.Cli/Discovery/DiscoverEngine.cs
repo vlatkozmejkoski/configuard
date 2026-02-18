@@ -104,16 +104,32 @@ internal static class DiscoverEngine
     {
         if (File.Exists(scanPath))
         {
-            return Path.GetExtension(scanPath).Equals(".cs", StringComparison.OrdinalIgnoreCase)
-                ? [scanPath]
-                : [];
+            var extension = Path.GetExtension(scanPath);
+            if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                return [scanPath];
+            }
+
+            if (extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".sln", StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(scanPath);
+                return string.IsNullOrWhiteSpace(parent)
+                    ? []
+                    : EnumerateCSharpFilesUnder(parent);
+            }
+
+            return [];
         }
 
-        return Directory
-            .EnumerateFiles(scanPath, "*.cs", SearchOption.AllDirectories)
+        return EnumerateCSharpFilesUnder(scanPath);
+    }
+
+    private static IEnumerable<string> EnumerateCSharpFilesUnder(string rootDirectory) =>
+        Directory
+            .EnumerateFiles(rootDirectory, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) &&
                            !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase));
-    }
 
     private static IEnumerable<string> ApplyFileFilters(
         IEnumerable<string> files,

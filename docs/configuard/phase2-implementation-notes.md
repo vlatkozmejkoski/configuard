@@ -6,7 +6,7 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 ## Planned Next Additions (Rolling)
 
 1. Add deterministic output tests for larger multi-project layouts.
-2. Add solution/project-level scoped discovery mode shortcuts.
+2. Add solution-level include/exclude presets for common repo layouts.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -153,3 +153,20 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Makes uncertainty explicit for dynamic access patterns instead of silently dropping them.
 - Provides better operator visibility while keeping `discover --apply` safe (high-confidence-only merge).
+
+## P2 Step 9: Add solution/project path shortcuts for discovery scope
+
+### What I changed
+
+- Extended discovery scan path handling:
+  - `.sln` path now scans the containing solution directory recursively
+  - `.csproj` path now scans only that project directory recursively
+  - existing behavior for directory and `.cs` paths remains unchanged
+- Added tests for:
+  - solution-path scoped scan behavior
+  - project-path scoped scan behavior excluding sibling project directories
+
+### Why
+
+- Reduces CLI friction by allowing teams to point discover directly at familiar repo anchors.
+- Improves practical scope control without requiring verbose include/exclude patterns for common use cases.
