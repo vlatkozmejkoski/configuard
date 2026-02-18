@@ -200,6 +200,7 @@ Additional options:
   - `.csproj` (scans that project directory)
   - `.sln` (scans the solution directory)
 - `--output <path>` writes report to file instead of stdout.
+- `--preset dotnet-solution` applies common .NET excludes (`bin`, `obj`, `TestResults`, `.git`, `.vs`).
 - `--include <glob>` / `--exclude <glob>` are repeatable filters.
 - `--apply` appends only high-confidence discovered keys to contract, without deleting existing keys.
 
@@ -272,7 +273,8 @@ Safe apply behavior (`discover --apply`):
 
 - adds only `high` confidence findings;
 - does not remove existing keys;
-- de-duplicates against existing key paths and aliases.
+- de-duplicates against existing key paths and aliases;
+- reuses inferred `suggestedType` (for example `int` from `GetValue<int>(...)`) when adding new keys.
 
 ## CI/CD Integration
 

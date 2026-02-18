@@ -11,5 +11,6 @@ internal sealed record ParsedCommand(
     string? ScanPath = null,
     string? OutputPath = null,
     bool Apply = false,
+    string? ScopePreset = null,
     IReadOnlyList<string>? IncludePatterns = null,
     IReadOnlyList<string>? ExcludePatterns = null);

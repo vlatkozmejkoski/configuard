@@ -118,7 +118,7 @@ public sealed class CommandParserTests
     public void TryParse_DiscoverCommand_ParsesPhase2Options()
     {
         var ok = CommandParser.TryParse(
-            ["discover", "--path", "src", "--output", "discover.json", "--format", "json", "--apply"],
+            ["discover", "--path", "src", "--output", "discover.json", "--format", "json", "--preset", "dotnet-solution", "--apply"],
             out var command,
             out var error);
 
@@ -129,6 +129,7 @@ public sealed class CommandParserTests
         Assert.Equal("src", command.ScanPath);
         Assert.Equal("discover.json", command.OutputPath);
         Assert.Equal("json", command.OutputFormat);
+        Assert.Equal("dotnet-solution", command.ScopePreset);
         Assert.True(command.Apply);
     }
 

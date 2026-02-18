@@ -5,8 +5,8 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 ## Planned Next Additions (Rolling)
 
-1. Add deterministic output tests for larger multi-project layouts.
-2. Add solution-level include/exclude presets for common repo layouts.
+1. Expand preset catalog for common repository archetypes (for example monorepo-focused defaults).
+2. Add semantic-model-backed discovery mode to reduce syntax-only false positives further.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -170,3 +170,53 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Reduces CLI friction by allowing teams to point discover directly at familiar repo anchors.
 - Improves practical scope control without requiring verbose include/exclude patterns for common use cases.
+
+## P2 Step 10: Add deterministic snapshot coverage for larger layouts
+
+### What I changed
+
+- Added a multi-project deterministic snapshot-style discovery test with:
+  - fixed UTC provider injection
+  - mixed source layout (`src/Api`, `src/Worker`) and explicit exclusions
+  - repeat-run JSON equality assertion
+
+### Why
+
+- Extends deterministic guarantees beyond single-folder cases.
+- Increases confidence in stable output for CI diffing and regression tests.
+
+## P2 Step 11: Add discover scope preset for common .NET solutions
+
+### What I changed
+
+- Added discover preset support:
+  - new option `--preset <name>` (currently `dotnet-solution`)
+- Implemented preset normalization/validation and filter composition in discovery engine.
+- `dotnet-solution` preset excludes common generated/build paths:
+  - `**/bin/**`, `**/obj/**`, `**/TestResults/**`, `**/.git/**`, `**/.vs/**`
+- Added tests for:
+  - preset-based artifact exclusion
+  - invalid preset input handling via command handler path
+
+### Why
+
+- Reduces repetitive CLI flags for common repository layouts.
+- Improves default signal quality in large .NET solutions.
+
+## P2 Step 12: Improve discovery signal quality and apply typing
+
+### What I changed
+
+- Reduced indexer false positives by restricting indexer findings to configuration-like receivers.
+- Added discovery type inference:
+  - infers `suggestedType` from `GetValue<T>` generic arguments
+  - maps CLR/common generic forms to contract types (`string`, `int`, `number`, `bool`, `array`, `object`)
+- Updated `discover --apply` merge behavior to write inferred types for added high-confidence keys.
+- Added tests for:
+  - non-configuration indexer suppression
+  - inferred type propagation into applied contract entries
+
+### Why
+
+- Improves trust in findings by removing noisy array/list indexer matches.
+- Produces better starter contracts by preserving useful inferred types.

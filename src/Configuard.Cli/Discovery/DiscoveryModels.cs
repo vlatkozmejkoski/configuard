@@ -12,7 +12,7 @@ internal sealed class DiscoveredKeyFinding
 {
     public string Path { get; init; } = string.Empty;
     public string Confidence { get; set; } = "high";
-    public string SuggestedType { get; init; } = "string";
+    public string SuggestedType { get; set; } = "string";
     public List<DiscoveryEvidence> Evidence { get; init; } = [];
     public List<string> Notes { get; init; } = [];
 }

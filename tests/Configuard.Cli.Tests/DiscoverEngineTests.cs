@@ -173,6 +173,31 @@ public sealed class DiscoverEngineTests
     }
 
     [Fact]
+    public void Discover_GetValueGenericType_InfersSuggestedType()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "Types.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class Types
+            {
+                public int Run(IConfiguration c) => c.GetValue<int>("Limits:MaxRetries");
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            var finding = Assert.Single(report.Findings, finding => finding.Path == "Limits:MaxRetries");
+            Assert.Equal("int", finding.SuggestedType);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Discover_ComposedPathExpression_IsReportedAsMediumConfidenceWithNote()
     {
         var tempDir = CreateTempDirectory();
@@ -225,6 +250,29 @@ public sealed class DiscoverEngineTests
             var finding = Assert.Single(report.Findings, finding => finding.Path == "{expr}");
             Assert.Equal("low", finding.Confidence);
             Assert.Contains("Path is unresolved due to runtime indirection.", finding.Notes);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Discover_IgnoresNonConfigurationIndexers()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "ArrayUse.cs"), """
+            public class ArrayUse
+            {
+                public string Run(string[] values, int i) => values[i];
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            Assert.Empty(report.Findings);
         }
         finally
         {
@@ -302,6 +350,65 @@ public sealed class DiscoverEngineTests
     }
 
     [Fact]
+    public void Discover_MultiProjectLayout_ProducesDeterministicSnapshot()
+    {
+        var tempDir = CreateTempDirectory();
+        var originalProvider = DiscoverEngine.UtcNowProvider;
+        try
+        {
+            var fixedUtc = new DateTimeOffset(2026, 2, 18, 20, 0, 0, TimeSpan.Zero);
+            DiscoverEngine.UtcNowProvider = () => fixedUtc;
+
+            var apiDir = Path.Combine(tempDir, "src", "Api");
+            var workerDir = Path.Combine(tempDir, "src", "Worker");
+            var testDir = Path.Combine(tempDir, "tests");
+            Directory.CreateDirectory(apiDir);
+            Directory.CreateDirectory(workerDir);
+            Directory.CreateDirectory(testDir);
+
+            File.WriteAllText(Path.Combine(apiDir, "Program.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class ApiProgram
+            {
+                public void Run(IConfiguration c) { var a = c["Api:Url"]; var b = c.GetValue<int>("Api:TimeoutSeconds"); }
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(workerDir, "Program.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class WorkerProgram
+            {
+                public void Run(IConfiguration c, string dynamicPart) { var a = c.GetValue<string>("Worker:" + dynamicPart); }
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(testDir, "Ignore.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class Ignore { public void Run(IConfiguration c) { var x = c["Tests:Key"]; } }
+            """);
+
+            var first = DiscoverOutputFormatter.ToJson(DiscoverEngine.Discover(
+                tempDir,
+                scopePreset: "dotnet-solution",
+                excludePatterns: ["tests/**"]));
+            var second = DiscoverOutputFormatter.ToJson(DiscoverEngine.Discover(
+                tempDir,
+                scopePreset: "dotnet-solution",
+                excludePatterns: ["tests/**"]));
+
+            Assert.Equal(first, second);
+            Assert.Contains("\"Api:TimeoutSeconds\"", first, StringComparison.Ordinal);
+            Assert.Contains("\"Worker:{expr}\"", first, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"Tests:Key\"", first, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DiscoverEngine.UtcNowProvider = originalProvider;
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Discover_PathAsSolutionFile_ScansSolutionDirectory()
     {
         var tempDir = CreateTempDirectory();
@@ -358,6 +465,37 @@ public sealed class DiscoverEngineTests
 
             Assert.Contains(report.Findings, finding => finding.Path == "Project:Key");
             Assert.DoesNotContain(report.Findings, finding => finding.Path == "External:Key");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Discover_DotnetSolutionPreset_ExcludesBuildArtifacts()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var srcDir = Path.Combine(tempDir, "src");
+            var objDir = Path.Combine(tempDir, "obj");
+            Directory.CreateDirectory(srcDir);
+            Directory.CreateDirectory(objDir);
+
+            File.WriteAllText(Path.Combine(srcDir, "A.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class A { public void Run(IConfiguration c) { var x = c["Api:Key"]; } }
+            """);
+            File.WriteAllText(Path.Combine(objDir, "Generated.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class G { public void Run(IConfiguration c) { var x = c["Generated:Key"]; } }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir, scopePreset: "dotnet-solution");
+
+            Assert.Contains(report.Findings, finding => finding.Path == "Api:Key");
+            Assert.DoesNotContain(report.Findings, finding => finding.Path == "Generated:Key");
         }
         finally
         {

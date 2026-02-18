@@ -216,11 +216,18 @@ internal static class CommandHandlers
             return ExitCodes.InputError;
         }
 
+        if (!DiscoverEngine.TryNormalizeScopePreset(command.ScopePreset, out var scopePreset, out var scopePresetError))
+        {
+            Console.Error.WriteLine(scopePresetError);
+            return ExitCodes.InputError;
+        }
+
         DiscoveryReport report;
         try
         {
             report = DiscoverEngine.Discover(
                 fullScanPath,
+                scopePreset: scopePreset,
                 includePatterns: command.IncludePatterns,
                 excludePatterns: command.ExcludePatterns);
         }
@@ -281,10 +288,15 @@ internal static class CommandHandlers
 
         var toAdd = report.Findings
             .Where(finding => string.Equals(finding.Confidence, "high", StringComparison.Ordinal))
-            .Select(finding => RuleEvaluation.NormalizePath(finding.Path).Trim())
-            .Where(path => !existingIdentifiers.Contains(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(finding => new
+            {
+                Path = RuleEvaluation.NormalizePath(finding.Path).Trim(),
+                Type = NormalizeDiscoveredType(finding.SuggestedType)
+            })
+            .Where(finding => !existingIdentifiers.Contains(finding.Path))
+            .GroupBy(finding => finding.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(finding => finding.Path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (toAdd.Count == 0)
@@ -316,12 +328,12 @@ internal static class CommandHandlers
             return false;
         }
 
-        foreach (var path in toAdd)
+        foreach (var finding in toAdd)
         {
             keysArray.Add(new JsonObject
             {
-                ["path"] = path,
-                ["type"] = "string"
+                ["path"] = finding.Path,
+                ["type"] = finding.Type
             });
         }
 
@@ -330,6 +342,41 @@ internal static class CommandHandlers
             rootObject!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
         addedCount = toAdd.Count;
         return true;
+    }
+
+    private static string NormalizeDiscoveredType(string? suggestedType)
+    {
+        if (string.Equals(suggestedType, "string", StringComparison.OrdinalIgnoreCase))
+        {
+            return "string";
+        }
+
+        if (string.Equals(suggestedType, "int", StringComparison.OrdinalIgnoreCase))
+        {
+            return "int";
+        }
+
+        if (string.Equals(suggestedType, "number", StringComparison.OrdinalIgnoreCase))
+        {
+            return "number";
+        }
+
+        if (string.Equals(suggestedType, "bool", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bool";
+        }
+
+        if (string.Equals(suggestedType, "object", StringComparison.OrdinalIgnoreCase))
+        {
+            return "object";
+        }
+
+        if (string.Equals(suggestedType, "array", StringComparison.OrdinalIgnoreCase))
+        {
+            return "array";
+        }
+
+        return "string";
     }
 
     private static bool TryNormalizeVerbosity(string? rawVerbosity, out string verbosity)

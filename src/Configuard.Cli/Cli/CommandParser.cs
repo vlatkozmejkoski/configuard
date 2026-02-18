@@ -28,6 +28,7 @@ internal static class CommandParser
         string? key = null;
         string? scanPath = null;
         string? outputPath = null;
+        string? scopePreset = null;
         var apply = false;
         var noColor = false;
         var envs = new List<string>();
@@ -92,6 +93,13 @@ internal static class CommandParser
                 case "--apply":
                     apply = true;
                     break;
+                case "--preset":
+                    if (!TryReadValue(args, ref i, token, out scopePreset, out error))
+                    {
+                        return false;
+                    }
+
+                    break;
                 case "--include":
                     if (!TryReadValue(args, ref i, token, out var includePattern, out error))
                     {
@@ -128,6 +136,7 @@ internal static class CommandParser
             ScanPath: scanPath,
             OutputPath: outputPath,
             Apply: apply,
+            ScopePreset: scopePreset,
             IncludePatterns: new ReadOnlyCollection<string>(includePatterns),
             ExcludePatterns: new ReadOnlyCollection<string>(excludePatterns));
         return true;

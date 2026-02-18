@@ -40,5 +40,5 @@ static void PrintUsage()
     Console.WriteLine("  configuard validate [--contract <path>] [--env <name>] [--format <text|json|sarif>] [--verbosity <quiet|normal|detailed>] [--no-color]");
     Console.WriteLine("  configuard diff [--contract <path>] --env <left> --env <right> [--format <text|json>] [--verbosity <quiet|normal|detailed>] [--no-color]");
     Console.WriteLine("  configuard explain [--contract <path>] --env <name> --key <path> [--format <text|json>] [--verbosity <quiet|normal|detailed>] [--no-color]");
-    Console.WriteLine("  configuard discover [--path <path>] [--output <path>] [--format <json>] [--verbosity <quiet|normal|detailed>] [--apply]");
+    Console.WriteLine("  configuard discover [--path <path>] [--output <path>] [--format <json>] [--verbosity <quiet|normal|detailed>] [--preset <dotnet-solution>] [--include <glob>] [--exclude <glob>] [--apply]");
 }

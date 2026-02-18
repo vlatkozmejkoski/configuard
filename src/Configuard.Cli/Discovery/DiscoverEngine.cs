@@ -8,6 +8,7 @@ namespace Configuard.Cli.Discovery;
 
 internal static class DiscoverEngine
 {
+    private const string DotnetSolutionPreset = "dotnet-solution";
     private const string HighConfidence = "high";
     private const string MediumConfidence = "medium";
     private const string LowConfidence = "low";
@@ -18,6 +19,7 @@ internal static class DiscoverEngine
 
     public static DiscoveryReport Discover(
         string scanPath,
+        string? scopePreset = null,
         IReadOnlyList<string>? includePatterns = null,
         IReadOnlyList<string>? excludePatterns = null)
     {
@@ -25,6 +27,7 @@ internal static class DiscoverEngine
         var files = ApplyFileFilters(
                 CollectCSharpFiles(fullScanPath),
                 fullScanPath,
+                scopePreset,
                 includePatterns,
                 excludePatterns)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
@@ -42,7 +45,7 @@ internal static class DiscoverEngine
                     {
                         Path = match.Path,
                         Confidence = match.Confidence,
-                        SuggestedType = "string"
+                        SuggestedType = match.SuggestedType
                     };
                     finding.Notes.AddRange(match.Notes);
                     findingsByPath[match.Path] = finding;
@@ -50,6 +53,12 @@ internal static class DiscoverEngine
                 else if (GetConfidenceRank(match.Confidence) > GetConfidenceRank(finding.Confidence))
                 {
                     finding.Confidence = match.Confidence;
+                }
+
+                if (string.Equals(finding.SuggestedType, "string", StringComparison.Ordinal) &&
+                    !string.Equals(match.SuggestedType, "string", StringComparison.Ordinal))
+                {
+                    finding.SuggestedType = match.SuggestedType;
                 }
 
                 foreach (var note in match.Notes)
@@ -134,11 +143,14 @@ internal static class DiscoverEngine
     private static IEnumerable<string> ApplyFileFilters(
         IEnumerable<string> files,
         string scanPath,
+        string? scopePreset,
         IReadOnlyList<string>? includePatterns,
         IReadOnlyList<string>? excludePatterns)
     {
-        var includes = NormalizePatterns(includePatterns);
-        var excludes = NormalizePatterns(excludePatterns);
+        TryNormalizeScopePreset(scopePreset, out var normalizedScopePreset, out _);
+        var preset = ResolveScopePreset(normalizedScopePreset);
+        var includes = NormalizePatterns((includePatterns ?? []).Concat(preset.IncludePatterns).ToList());
+        var excludes = NormalizePatterns((excludePatterns ?? []).Concat(preset.ExcludePatterns).ToList());
 
         foreach (var file in files)
         {
@@ -156,6 +168,44 @@ internal static class DiscoverEngine
 
             yield return file;
         }
+    }
+
+    public static bool TryNormalizeScopePreset(string? rawPreset, out string? normalizedPreset, out string? error)
+    {
+        normalizedPreset = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(rawPreset))
+        {
+            return true;
+        }
+
+        normalizedPreset = rawPreset.Trim().ToLowerInvariant();
+        if (normalizedPreset == DotnetSolutionPreset)
+        {
+            return true;
+        }
+
+        error = $"Unsupported discover preset '{rawPreset}'. Supported: {DotnetSolutionPreset}.";
+        return false;
+    }
+
+    private static ScopePreset ResolveScopePreset(string? normalizedScopePreset)
+    {
+        if (string.Equals(normalizedScopePreset, DotnetSolutionPreset, StringComparison.Ordinal))
+        {
+            return new ScopePreset(
+                IncludePatterns: [],
+                ExcludePatterns:
+                [
+                    "**/bin/**",
+                    "**/obj/**",
+                    "**/TestResults/**",
+                    "**/.git/**",
+                    "**/.vs/**"
+                ]);
+        }
+
+        return new ScopePreset([], []);
     }
 
     private static List<string> NormalizePatterns(IReadOnlyList<string>? patterns)
@@ -196,12 +246,19 @@ internal static class DiscoverEngine
                 continue;
             }
 
+            if (string.Equals(keyPath.Confidence, LowConfidence, StringComparison.Ordinal) &&
+                !IsConfigurationLikeExpression(elementAccess.Expression))
+            {
+                continue;
+            }
+
             yield return BuildMatch(
                 keyPath,
                 filePath,
                 scanRoot,
                 symbol: GetSymbol(elementAccess),
-                pattern: "indexer");
+                pattern: "indexer",
+                suggestedType: "string");
         }
 
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
@@ -225,7 +282,8 @@ internal static class DiscoverEngine
                     filePath,
                     scanRoot,
                     symbol: GetSymbol(invocation),
-                    pattern: methodName);
+                    pattern: methodName,
+                    suggestedType: GetSuggestedTypeForInvocation(methodName, memberAccess.Name));
             }
             else if (methodName == "Configure")
             {
@@ -240,7 +298,8 @@ internal static class DiscoverEngine
                     filePath,
                     scanRoot,
                     symbol: GetSymbol(invocation),
-                    pattern: "Configure(GetSection)");
+                    pattern: "Configure(GetSection)",
+                    suggestedType: "object");
             }
             else if (methodName == "Bind")
             {
@@ -262,7 +321,8 @@ internal static class DiscoverEngine
                     filePath,
                     scanRoot,
                     symbol: GetSymbol(invocation),
-                    pattern: pattern);
+                    pattern: pattern,
+                    suggestedType: bindPath.Source == BindPathSource.GetSection ? "object" : "string");
             }
             else if (methodName == "BindConfiguration")
             {
@@ -277,7 +337,8 @@ internal static class DiscoverEngine
                     filePath,
                     scanRoot,
                     symbol: GetSymbol(invocation),
-                    pattern: "BindConfiguration");
+                    pattern: "BindConfiguration",
+                    suggestedType: "object");
             }
         }
     }
@@ -287,11 +348,13 @@ internal static class DiscoverEngine
         string filePath,
         string scanRoot,
         string symbol,
-        string pattern)
+        string pattern,
+        string suggestedType)
     {
         return new DiscoveryMatch(
             Path: RuleEvaluation.NormalizePath(pathResolution.Path).Trim(),
             Confidence: pathResolution.Confidence,
+            SuggestedType: suggestedType,
             Notes: pathResolution.Notes,
             Evidence: new DiscoveryEvidence
             {
@@ -371,6 +434,97 @@ internal static class DiscoverEngine
 
         var type = node.Ancestors().OfType<TypeDeclarationSyntax>().FirstOrDefault();
         return type?.Identifier.ValueText ?? "(unknown)";
+    }
+
+    private static string GetSuggestedTypeForInvocation(string methodName, SimpleNameSyntax memberName)
+    {
+        if (string.Equals(methodName, "GetSection", StringComparison.Ordinal))
+        {
+            return "object";
+        }
+
+        if (!string.Equals(methodName, "GetValue", StringComparison.Ordinal))
+        {
+            return "string";
+        }
+
+        if (memberName is not GenericNameSyntax genericName || genericName.TypeArgumentList.Arguments.Count == 0)
+        {
+            return "string";
+        }
+
+        return MapClrTypeToContractType(genericName.TypeArgumentList.Arguments[0]);
+    }
+
+    private static string MapClrTypeToContractType(TypeSyntax typeSyntax)
+    {
+        if (typeSyntax is NullableTypeSyntax nullableType)
+        {
+            return MapClrTypeToContractType(nullableType.ElementType);
+        }
+
+        if (typeSyntax is ArrayTypeSyntax)
+        {
+            return "array";
+        }
+
+        var typeName = typeSyntax.ToString().Trim();
+        var normalized = typeName switch
+        {
+            "string" => "string",
+            "bool" => "bool",
+            "int" or "long" or "short" or "byte" or "sbyte" or "uint" or "ulong" or "ushort" => "int",
+            "double" or "float" or "decimal" => "number",
+            _ => null
+        };
+
+        if (normalized is not null)
+        {
+            return normalized;
+        }
+
+        if (typeSyntax is GenericNameSyntax generic)
+        {
+            var genericTypeName = generic.Identifier.ValueText;
+            if (genericTypeName is "IEnumerable" or "ICollection" or "IList" or "IReadOnlyList" or "List")
+            {
+                return "array";
+            }
+        }
+
+        return "object";
+    }
+
+    private static bool IsConfigurationLikeExpression(ExpressionSyntax expression)
+    {
+        return expression switch
+        {
+            IdentifierNameSyntax identifier =>
+                identifier.Identifier.ValueText.Contains("config", StringComparison.OrdinalIgnoreCase),
+            MemberAccessExpressionSyntax memberAccess =>
+                memberAccess.Name.Identifier.ValueText.Contains("config", StringComparison.OrdinalIgnoreCase) ||
+                IsConfigurationLikeExpression(memberAccess.Expression),
+            InvocationExpressionSyntax invocation => IsConfigurationLikeInvocation(invocation),
+            ParenthesizedExpressionSyntax parenthesized => IsConfigurationLikeExpression(parenthesized.Expression),
+            ElementAccessExpressionSyntax nestedAccess => IsConfigurationLikeExpression(nestedAccess.Expression),
+            _ => false
+        };
+    }
+
+    private static bool IsConfigurationLikeInvocation(InvocationExpressionSyntax invocation)
+    {
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+        {
+            return false;
+        }
+
+        var methodName = memberAccess.Name.Identifier.ValueText;
+        if (methodName is "GetSection" or "GetRequiredSection")
+        {
+            return true;
+        }
+
+        return IsConfigurationLikeExpression(memberAccess.Expression);
     }
 
     private static PathResolution? TryResolvePath(ExpressionSyntax expression)
@@ -504,11 +658,16 @@ internal static class DiscoverEngine
         GetSection
     }
 
+    private sealed record ScopePreset(
+        IReadOnlyList<string> IncludePatterns,
+        IReadOnlyList<string> ExcludePatterns);
+
     private sealed record PathResolution(string Path, string Confidence, IReadOnlyList<string> Notes);
     private sealed record BindPath(PathResolution PathResolution, BindPathSource Source);
     private sealed record DiscoveryMatch(
         string Path,
         string Confidence,
+        string SuggestedType,
         IReadOnlyList<string> Notes,
         DiscoveryEvidence Evidence);
 }

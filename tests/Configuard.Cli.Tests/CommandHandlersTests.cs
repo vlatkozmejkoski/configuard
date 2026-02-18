@@ -995,6 +995,7 @@ public sealed class CommandHandlersTests
             Assert.NotNull(contract);
             Assert.Contains(contract!.Keys, key => key.Path == "Existing:Key");
             Assert.Contains(contract.Keys, key => key.Path == "Api:Key");
+            Assert.Contains(contract.Keys, key => key.Path == "Api:Key" && key.Type == "string");
             Assert.DoesNotContain(contract.Keys, key => key.Path == "Dyn:{expr}");
         }
         finally
@@ -1053,6 +1054,89 @@ public sealed class CommandHandlersTests
             Assert.NotNull(contract);
             Assert.Single(contract!.Keys);
             Assert.Equal("Canonical:ApiKey", contract.Keys[0].Path);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_DiscoverApply_UsesInferredTypeFromGetValueGeneric_ReturnsSuccess()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                }
+              },
+              "keys": [
+                {
+                  "path": "Existing:Key",
+                  "type": "string"
+                }
+              ]
+            }
+            """);
+
+            File.WriteAllText(Path.Combine(tempDir, "sample.cs"), """
+            using Microsoft.Extensions.Configuration;
+            public class Sample
+            {
+                public int Run(IConfiguration c) => c.GetValue<int>("Limits:MaxRetries");
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: contractPath,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                Apply: true);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.Success, code);
+            var loaded = ContractLoader.TryLoad(contractPath, out var contract, out var loadError);
+            Assert.True(loaded, loadError);
+            Assert.Contains(contract!.Keys, key => key.Path == "Limits:MaxRetries" && key.Type == "int");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_DiscoverUnknownPreset_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: null,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                ScopePreset: "custom");
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
         }
         finally
         {
