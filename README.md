@@ -15,6 +15,17 @@ Current focus: reliable `validate` behavior with contract-based rules and CI-fri
 - Added CI/release automation via GitHub Actions, including NuGet publish and release artifact flow.
 - Added MIT licensing and package metadata improvements.
 
+## 0.3.0 Highlights
+
+- Expanded Phase 2 discovery with options-binding coverage:
+  - `Bind(...)` and `BindConfiguration(...)` patterns
+  - configurable scan scoping with `--include` / `--exclude`
+  - `.sln` / `.csproj` path shortcuts for discovery scope
+- Added discovery confidence grading (`high` / `medium` / `low`) with explicit uncertainty notes.
+- Added safe `discover --apply` mode (high-confidence append-only, no deletions, alias-aware dedupe).
+- Hardened deterministic discovery output behavior for repeatable CI/test workflows.
+- Added local playground bootstrap docs + script for end-to-end tool usage.
+
 ## 0.2.2 Patch Highlights
 
 - Hardened contract-load semantic validation for environments, per-key source preferences, and constraints shape/bounds.
