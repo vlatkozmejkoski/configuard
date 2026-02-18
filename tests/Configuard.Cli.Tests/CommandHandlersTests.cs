@@ -803,4 +803,138 @@ public sealed class CommandHandlersTests
         }
     }
 
+    [Fact]
+    public void Execute_DiffUsesEnvSnapshotSourcePreferenceAndDetectsChange_ReturnsPolicyFailure()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var snapshotsDir = Path.Combine(tempDir, "snapshots");
+            Directory.CreateDirectory(snapshotsDir);
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), """
+            {
+              "Api": {
+                "Key": "from-appsettings"
+              }
+            }
+            """);
+            File.WriteAllText(Path.Combine(snapshotsDir, "staging.json"), """
+            {
+              "Api": {
+                "Key": "from-snapshot-staging"
+              }
+            }
+            """);
+            File.WriteAllText(Path.Combine(snapshotsDir, "production.json"), """
+            {
+              "Api": {
+                "Key": "from-snapshot-production"
+              }
+            }
+            """);
+
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging", "production"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                },
+                "envSnapshot": {
+                  "environmentPattern": "snapshots/{env}.json",
+                  "optional": true
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "sourcePreference": ["envsnapshot", "appsettings"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "diff",
+                ContractPath: contractPath,
+                Environments: ["staging", "production"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.PolicyFailure, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_ExplainSourcePreferenceAppSettingsOnly_WhenOnlySnapshotHasValue_ReturnsPolicyFailure()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var snapshotsDir = Path.Combine(tempDir, "snapshots");
+            Directory.CreateDirectory(snapshotsDir);
+            File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), "{}");
+            File.WriteAllText(Path.Combine(snapshotsDir, "staging.json"), """
+            {
+              "Api": {
+                "Key": "from-snapshot"
+              }
+            }
+            """);
+
+            var contractPath = Path.Combine(tempDir, "configuard.contract.json");
+            File.WriteAllText(contractPath, """
+            {
+              "version": "1",
+              "environments": ["staging"],
+              "sources": {
+                "appsettings": {
+                  "base": "appsettings.json",
+                  "environmentPattern": "appsettings.{env}.json"
+                },
+                "envSnapshot": {
+                  "environmentPattern": "snapshots/{env}.json",
+                  "optional": true
+                }
+              },
+              "keys": [
+                {
+                  "path": "Api:Key",
+                  "type": "string",
+                  "requiredIn": ["staging"],
+                  "sourcePreference": ["appsettings"]
+                }
+              ]
+            }
+            """);
+
+            var command = new ParsedCommand(
+                Name: "explain",
+                ContractPath: contractPath,
+                Environments: ["staging"],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: "Api:Key");
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.PolicyFailure, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

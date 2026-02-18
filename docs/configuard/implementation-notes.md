@@ -1277,3 +1277,16 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Reduces repeated normalization/allocation overhead in hot resolution paths used by `validate`, `diff`, and `explain`.
 - Adds confidence that large contracts remain stable while performance optimizations are introduced.
+
+## Step 66: Add command-level sourcePreference + envSnapshot resolution regressions
+
+### What I changed
+
+- Added `CommandHandlersTests` coverage for command-layer source-resolution behavior:
+  - `diff` uses `sourcePreference: ["envsnapshot", "appsettings"]` and reports drift from snapshot values across environments.
+  - `explain` honors `sourcePreference: ["appsettings"]` and does not fall back to `envSnapshot`, producing expected policy failure when required key exists only in snapshot.
+
+### Why
+
+- Validates end-to-end command behavior (exit code mapping and resolution semantics), not only engine-level unit paths.
+- Protects against regressions where source precedence is accidentally changed during performance/refactor work.
