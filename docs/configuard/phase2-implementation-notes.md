@@ -5,11 +5,11 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 ## Planned Next Additions (Rolling)
 
-1. Expand discovery patterns to include `Bind(...)` and `AddOptions<T>().Bind(...)`.
-2. Add confidence grading beyond literal-only (`medium` for partial constant composition).
-3. Add include/exclude filtering for discovery scope (projects/directories).
-4. Add deterministic output tests for larger multi-project layouts.
-5. Add `discover --apply` (high-confidence only, never delete existing keys).
+1. Add confidence grading beyond literal-only (`medium` for partial constant composition).
+2. Add include/exclude filtering for discovery scope (projects/directories).
+3. Add deterministic output tests for larger multi-project layouts.
+4. Add `discover --apply` (high-confidence only, never delete existing keys).
+5. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -33,3 +33,22 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Establishes Phase 2 architecture with safe, read-only behavior before contract mutation.
 - Provides real key-discovery value immediately while keeping false-positive risk bounded to explicit literal patterns.
+
+## P2 Step 2: Expand discovery to options-binding `Bind(...)` flows
+
+### What I changed
+
+- Extended discovery matching for binding APIs:
+  - `configuration.Bind("A:B", target)`
+  - `AddOptions<T>().Bind(configuration.GetSection("A:B"))`
+- Added explicit evidence pattern labels:
+  - `Bind(literal)`
+  - `Bind(GetSection)`
+- Added discovery tests for:
+  - newly supported bind patterns
+  - evidence pattern classification for the same discovered key path
+
+### Why
+
+- Covers a high-frequency real-world .NET configuration style beyond direct indexer/get-value access.
+- Improves discovery utility early while remaining deterministic and read-only.

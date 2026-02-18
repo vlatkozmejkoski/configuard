@@ -28,6 +28,12 @@ public sealed class DiscoverEngineTests
                 {
                     services.Configure<DemoOptions>(configuration.GetSection("Demo:Section"));
                 }
+
+                public void C(IServiceCollection services, IConfiguration configuration, DemoOptions options)
+                {
+                    services.AddOptions<DemoOptions>().Bind(configuration.GetSection("Options:Bound"));
+                    configuration.Bind("Options:Literal", options);
+                }
             }
             """);
 
@@ -38,6 +44,8 @@ public sealed class DiscoverEngineTests
             Assert.Contains(report.Findings, finding => finding.Path == "Api:Timeout");
             Assert.Contains(report.Findings, finding => finding.Path == "Features:Flags");
             Assert.Contains(report.Findings, finding => finding.Path == "Demo:Section");
+            Assert.Contains(report.Findings, finding => finding.Path == "Options:Bound");
+            Assert.Contains(report.Findings, finding => finding.Path == "Options:Literal");
         }
         finally
         {
@@ -68,6 +76,39 @@ public sealed class DiscoverEngineTests
                 finding.Evidence[0].File,
                 finding.Evidence[1].File,
                 StringComparison.OrdinalIgnoreCase) <= 0);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Discover_TracksBindPatternEvidenceKinds()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "BindCases.cs"), """
+            using Microsoft.Extensions.DependencyInjection;
+            using Microsoft.Extensions.Configuration;
+
+            public class BindCases
+            {
+                public void Run(IServiceCollection services, IConfiguration configuration, DemoOptions options)
+                {
+                    services.AddOptions<DemoOptions>().Bind(configuration.GetSection("A:B"));
+                    configuration.Bind("A:B", options);
+                }
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            var finding = Assert.Single(report.Findings, finding => finding.Path == "A:B");
+            Assert.True(finding.Evidence.Count >= 2);
+            Assert.Contains(finding.Evidence, evidence => evidence.Pattern == "Bind(GetSection)");
+            Assert.Contains(finding.Evidence, evidence => evidence.Pattern == "Bind(literal)");
         }
         finally
         {

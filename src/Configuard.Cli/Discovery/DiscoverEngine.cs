@@ -142,6 +142,28 @@ internal static class DiscoverEngine
                     symbol: GetSymbol(invocation),
                     pattern: "Configure(GetSection)");
             }
+            else if (methodName == "Bind")
+            {
+                var bindPath = TryReadBindPath(invocation);
+                if (bindPath is null)
+                {
+                    continue;
+                }
+
+                var pattern = bindPath.Source switch
+                {
+                    BindPathSource.GetSection => "Bind(GetSection)",
+                    BindPathSource.Literal => "Bind(literal)",
+                    _ => "Bind"
+                };
+
+                yield return BuildMatch(
+                    bindPath.Path,
+                    filePath,
+                    scanRoot,
+                    symbol: GetSymbol(invocation),
+                    pattern: pattern);
+            }
         }
     }
 
@@ -193,6 +215,33 @@ internal static class DiscoverEngine
         return ReadFirstStringArgument(nestedInvocation.ArgumentList.Arguments);
     }
 
+    private static BindPath? TryReadBindPath(InvocationExpressionSyntax bindInvocation)
+    {
+        if (bindInvocation.ArgumentList.Arguments.Count == 0)
+        {
+            return null;
+        }
+
+        var firstArgument = bindInvocation.ArgumentList.Arguments[0].Expression;
+        if (firstArgument is LiteralExpressionSyntax literal &&
+            literal.IsKind(SyntaxKind.StringLiteralExpression))
+        {
+            return new BindPath(literal.Token.ValueText, BindPathSource.Literal);
+        }
+
+        if (firstArgument is InvocationExpressionSyntax nestedInvocation &&
+            nestedInvocation.Expression is MemberAccessExpressionSyntax nestedMember &&
+            string.Equals(nestedMember.Name.Identifier.Text, "GetSection", StringComparison.Ordinal))
+        {
+            var path = ReadFirstStringArgument(nestedInvocation.ArgumentList.Arguments);
+            return path is null
+                ? null
+                : new BindPath(path, BindPathSource.GetSection);
+        }
+
+        return null;
+    }
+
     private static string GetSymbol(SyntaxNode node)
     {
         var method = node.Ancestors().OfType<BaseMethodDeclarationSyntax>().FirstOrDefault();
@@ -210,5 +259,12 @@ internal static class DiscoverEngine
         return type?.Identifier.ValueText ?? "(unknown)";
     }
 
+    private enum BindPathSource
+    {
+        Literal,
+        GetSection
+    }
+
+    private sealed record BindPath(string Path, BindPathSource Source);
     private sealed record DiscoveryMatch(string Path, DiscoveryEvidence Evidence);
 }

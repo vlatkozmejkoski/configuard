@@ -217,6 +217,15 @@ Use case: statically discover configuration key paths from C# code usage pattern
 dotnet run --project src/Configuard.Cli -- discover --path . --format json --output discover-report.json
 ```
 
+Currently detected pattern examples:
+
+- `configuration["A:B"]`
+- `configuration.GetValue<T>("A:B")`
+- `configuration.GetSection("A:B")`
+- `services.Configure<T>(configuration.GetSection("A:B"))`
+- `configuration.Bind("A:B", target)`
+- `services.AddOptions<T>().Bind(configuration.GetSection("A:B"))`
+
 ## Contract File
 
 Default contract path: `configuard.contract.json`
