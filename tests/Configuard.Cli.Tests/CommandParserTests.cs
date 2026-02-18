@@ -113,4 +113,22 @@ public sealed class CommandParserTests
         Assert.NotNull(command);
         Assert.Equal("validate", command!.Name);
     }
+
+    [Fact]
+    public void TryParse_DiscoverCommand_ParsesPhase2Options()
+    {
+        var ok = CommandParser.TryParse(
+            ["discover", "--path", "src", "--output", "discover.json", "--format", "json", "--apply"],
+            out var command,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        Assert.NotNull(command);
+        Assert.Equal("discover", command!.Name);
+        Assert.Equal("src", command.ScanPath);
+        Assert.Equal("discover.json", command.OutputPath);
+        Assert.Equal("json", command.OutputFormat);
+        Assert.True(command.Apply);
+    }
 }

@@ -7,4 +7,7 @@ internal sealed record ParsedCommand(
     string? OutputFormat,
     string? Verbosity,
     string? Key,
-    bool NoColor = false);
+    bool NoColor = false,
+    string? ScanPath = null,
+    string? OutputPath = null,
+    bool Apply = false);

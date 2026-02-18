@@ -937,4 +937,71 @@ public sealed class CommandHandlersTests
         }
     }
 
+    [Fact]
+    public void Execute_DiscoverApplyNotImplemented_ReturnsInputError()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: null,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                Apply: true);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.InputError, code);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Execute_DiscoverWritesReportFile_ReturnsSuccess()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "sample.cs"), @"using Microsoft.Extensions.Configuration;
+
+public class Sample
+{
+    public void Configure(IConfiguration configuration)
+    {
+        var key = configuration[""Api:Key""];
+    }
+}");
+
+            var outputPath = Path.Combine(tempDir, "discover.json");
+            var command = new ParsedCommand(
+                Name: "discover",
+                ContractPath: null,
+                Environments: [],
+                OutputFormat: "json",
+                Verbosity: "quiet",
+                Key: null,
+                ScanPath: tempDir,
+                OutputPath: outputPath);
+
+            var code = CommandHandlers.Execute(command);
+
+            Assert.Equal(ExitCodes.Success, code);
+            Assert.True(File.Exists(outputPath));
+            var report = File.ReadAllText(outputPath);
+            Assert.Contains("\"findings\"", report, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"Api:Key\"", report, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
 }

@@ -16,7 +16,7 @@ internal static class CommandParser
         }
 
         var name = args[0].Trim().ToLowerInvariant();
-        if (name is not ("validate" or "diff" or "explain"))
+        if (name is not ("validate" or "diff" or "explain" or "discover"))
         {
             error = $"Unknown command '{args[0]}'.";
             return false;
@@ -26,6 +26,9 @@ internal static class CommandParser
         string? outputFormat = null;
         string? verbosity = null;
         string? key = null;
+        string? scanPath = null;
+        string? outputPath = null;
+        var apply = false;
         var noColor = false;
         var envs = new List<string>();
 
@@ -70,6 +73,23 @@ internal static class CommandParser
                     }
 
                     break;
+                case "--path":
+                    if (!TryReadValue(args, ref i, token, out scanPath, out error))
+                    {
+                        return false;
+                    }
+
+                    break;
+                case "--output":
+                    if (!TryReadValue(args, ref i, token, out outputPath, out error))
+                    {
+                        return false;
+                    }
+
+                    break;
+                case "--apply":
+                    apply = true;
+                    break;
                 case "--no-color":
                     noColor = true;
                     break;
@@ -86,7 +106,10 @@ internal static class CommandParser
             OutputFormat: outputFormat,
             Verbosity: verbosity,
             Key: key,
-            NoColor: noColor);
+            NoColor: noColor,
+            ScanPath: scanPath,
+            OutputPath: outputPath,
+            Apply: apply);
         return true;
     }
 

@@ -3,6 +3,10 @@
 This document outlines phase 2 work for configuration dependency discovery.
 The objective is to reduce manual contract authoring effort without making v1 fragile.
 
+Implementation progress and planned incremental slices are tracked in:
+
+- `docs/configuard/phase2-implementation-notes.md`
+
 ## Phase 2 Goal
 
 Generate contract suggestions by statically analyzing C# code that consumes configuration.

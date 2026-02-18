@@ -32,6 +32,7 @@ Current focus: reliable `validate` behavior with contract-based rules and CI-fri
 Implemented:
 
 - CLI command routing (`validate`, `diff`, `explain`)
+- Experimental Phase 2 discovery command (`discover`, read-only JSON report)
 - Contract loading (`configuard.contract.json`, version `1`)
 - `validate` engine for:
   - `requiredIn`, `forbiddenIn`
@@ -206,6 +207,14 @@ Use case: inspect the same explanation in structured JSON.
 
 ```bash
 dotnet run --project src/Configuard.Cli -- explain --contract examples/quickstart/configuard.contract.json --env production --key ConnectionStrings:Default --format json
+```
+
+### `discover` (phase 2, experimental)
+
+Use case: statically discover configuration key paths from C# code usage patterns.
+
+```bash
+dotnet run --project src/Configuard.Cli -- discover --path . --format json --output discover-report.json
 ```
 
 ## Contract File

@@ -1304,3 +1304,15 @@ This file captures incremental implementation decisions, with "what" and "why".
 
 - Provides a script-friendly way to verify installed tool version in CI/local debugging.
 - Keeps version formatting logic centralized and reusable for future help/banner improvements.
+
+## Step 68: Start Phase 2 tracking in dedicated notes file
+
+### What I changed
+
+- Added dedicated Phase 2 tracking doc: `docs/configuard/phase2-implementation-notes.md`.
+- Added rolling "Planned Next Additions" section in that file and recorded first Phase 2 slice there.
+
+### Why
+
+- Keeps v1 stabilization notes and Phase 2 discovery work clearly separated.
+- Makes upcoming Phase 2 planning explicit and easier to review incrementally.

@@ -1,4 +1,5 @@
 using Configuard.Cli.Validation;
+using Configuard.Cli.Discovery;
 
 namespace Configuard.Cli.Cli;
 
@@ -7,6 +8,7 @@ internal static class CommandHandlers
     private static readonly string[] ValidateFormats = ["text", "json", "sarif"];
     private static readonly string[] DiffFormats = ["text", "json"];
     private static readonly string[] ExplainFormats = ["text", "json"];
+    private static readonly string[] DiscoverFormats = ["json"];
 
     public static int Execute(ParsedCommand command)
     {
@@ -16,6 +18,7 @@ internal static class CommandHandlers
             "validate" => HandleValidate(command),
             "diff" => HandleDiff(command),
             "explain" => HandleExplain(command),
+            "discover" => HandleDiscover(command),
             _ => ExitCodes.InputError
         };
     }
@@ -186,6 +189,58 @@ internal static class CommandHandlers
         }
 
         return result!.IsPass ? ExitCodes.Success : ExitCodes.PolicyFailure;
+    }
+
+    private static int HandleDiscover(ParsedCommand command)
+    {
+        if (!TryNormalizeVerbosity(command.Verbosity, out var verbosity))
+        {
+            return ExitCodes.InputError;
+        }
+
+        if (command.Apply)
+        {
+            Console.Error.WriteLine("discover --apply is not implemented yet.");
+            return ExitCodes.InputError;
+        }
+
+        var requestedFormat = string.IsNullOrWhiteSpace(command.OutputFormat)
+            ? "json"
+            : command.OutputFormat;
+        if (!TryNormalizeFormat("discover", requestedFormat, DiscoverFormats, out _))
+        {
+            return ExitCodes.InputError;
+        }
+
+        var scanPath = command.ScanPath ?? Environment.CurrentDirectory;
+        var fullScanPath = Path.GetFullPath(scanPath);
+        if (!Directory.Exists(fullScanPath) && !File.Exists(fullScanPath))
+        {
+            Console.Error.WriteLine($"Discover path does not exist: {scanPath}");
+            return ExitCodes.InputError;
+        }
+
+        DiscoveryReport report;
+        try
+        {
+            report = DiscoverEngine.Discover(fullScanPath);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Discover failed: {ex.Message}");
+            return ExitCodes.InternalError;
+        }
+
+        var json = DiscoverOutputFormatter.ToJson(report);
+        if (!string.IsNullOrWhiteSpace(command.OutputPath))
+        {
+            File.WriteAllText(command.OutputPath, json);
+            WriteIfNotQuiet(verbosity, () => $"Discover report written: {command.OutputPath}");
+            return ExitCodes.Success;
+        }
+
+        WriteIfNotQuiet(verbosity, () => json);
+        return ExitCodes.Success;
     }
 
     private static bool TryNormalizeVerbosity(string? rawVerbosity, out string verbosity)
