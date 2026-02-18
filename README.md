@@ -246,6 +246,7 @@ Discovery confidence:
 
 - `high`: fully literal path discovery.
 - `medium`: partially composed expression with unresolved dynamic segments (annotated with notes in report).
+- `low`: unresolved runtime indirection (path placeholder only, annotated with notes in report).
 
 Deterministic report behavior:
 

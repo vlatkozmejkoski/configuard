@@ -203,6 +203,36 @@ public sealed class DiscoverEngineTests
     }
 
     [Fact]
+    public void Discover_UnresolvedIdentifierPath_IsReportedAsLowConfidenceWithNote()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "Unresolved.cs"), """
+            using Microsoft.Extensions.Configuration;
+
+            public class Unresolved
+            {
+                public void Run(IConfiguration configuration, string keyFromElsewhere)
+                {
+                    var key = configuration.GetValue<string>(keyFromElsewhere);
+                }
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            var finding = Assert.Single(report.Findings, finding => finding.Path == "{expr}");
+            Assert.Equal("low", finding.Confidence);
+            Assert.Contains("Path is unresolved due to runtime indirection.", finding.Notes);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Discover_IncludeExcludePatterns_FilterFiles()
     {
         var tempDir = CreateTempDirectory();

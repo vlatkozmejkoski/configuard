@@ -10,7 +10,9 @@ internal static class DiscoverEngine
 {
     private const string HighConfidence = "high";
     private const string MediumConfidence = "medium";
+    private const string LowConfidence = "low";
     private const string UnresolvedSegmentNote = "Contains unresolved dynamic segment(s).";
+    private const string UnresolvedPathNote = "Path is unresolved due to runtime indirection.";
 
     public static Func<DateTimeOffset> UtcNowProvider { get; set; } = () => DateTimeOffset.UtcNow;
 
@@ -319,12 +321,6 @@ internal static class DiscoverEngine
         }
 
         var firstArgument = bindInvocation.ArgumentList.Arguments[0].Expression;
-        var directPath = TryResolvePath(firstArgument);
-        if (directPath is not null)
-        {
-            return new BindPath(directPath, BindPathSource.Literal);
-        }
-
         if (firstArgument is InvocationExpressionSyntax nestedInvocation &&
             nestedInvocation.Expression is MemberAccessExpressionSyntax nestedMember &&
             string.Equals(nestedMember.Name.Identifier.Text, "GetSection", StringComparison.Ordinal))
@@ -333,6 +329,12 @@ internal static class DiscoverEngine
             return path is null
                 ? null
                 : new BindPath(path, BindPathSource.GetSection);
+        }
+
+        var directPath = TryResolvePath(firstArgument);
+        if (directPath is not null)
+        {
+            return new BindPath(directPath, BindPathSource.Literal);
         }
 
         return null;
@@ -366,7 +368,7 @@ internal static class DiscoverEngine
                 TryResolveBinaryPath(binary),
             InterpolatedStringExpressionSyntax interpolated =>
                 TryResolveInterpolatedPath(interpolated),
-            _ => null
+            _ => CreateLowConfidencePath()
         };
     }
 
@@ -390,18 +392,24 @@ internal static class DiscoverEngine
             notes.AddRange(right.Notes);
         }
 
-        var hasUnresolvedSegment = left is null || right is null;
+        var hasUnresolvedSegment =
+            left is null ||
+            right is null ||
+            string.Equals(left?.Confidence, LowConfidence, StringComparison.Ordinal) ||
+            string.Equals(right?.Confidence, LowConfidence, StringComparison.Ordinal);
         if (hasUnresolvedSegment && !notes.Contains(UnresolvedSegmentNote, StringComparer.Ordinal))
         {
             notes.Add(UnresolvedSegmentNote);
         }
 
         var path = $"{left?.Path ?? "{expr}"}{right?.Path ?? "{expr}"}";
-        var confidence = hasUnresolvedSegment ||
-                         string.Equals(left?.Confidence, MediumConfidence, StringComparison.Ordinal) ||
-                         string.Equals(right?.Confidence, MediumConfidence, StringComparison.Ordinal)
-            ? MediumConfidence
-            : HighConfidence;
+        var hasLiteralContext = !string.Equals(path, "{expr}{expr}", StringComparison.Ordinal);
+        var confidence = hasUnresolvedSegment
+            ? (hasLiteralContext ? MediumConfidence : LowConfidence)
+            : (string.Equals(left?.Confidence, MediumConfidence, StringComparison.Ordinal) ||
+               string.Equals(right?.Confidence, MediumConfidence, StringComparison.Ordinal)
+                ? MediumConfidence
+                : HighConfidence);
 
         return new PathResolution(path, confidence, notes);
     }
@@ -435,7 +443,8 @@ internal static class DiscoverEngine
 
             parts.Add(interpolationPath.Path);
             notes.AddRange(interpolationPath.Notes);
-            if (string.Equals(interpolationPath.Confidence, MediumConfidence, StringComparison.Ordinal))
+            if (string.Equals(interpolationPath.Confidence, MediumConfidence, StringComparison.Ordinal) ||
+                string.Equals(interpolationPath.Confidence, LowConfidence, StringComparison.Ordinal))
             {
                 hasUnresolvedSegment = true;
             }
@@ -451,9 +460,13 @@ internal static class DiscoverEngine
             notes.Add(UnresolvedSegmentNote);
         }
 
+        var path = string.Concat(parts);
+        var hasLiteralContext = !string.Equals(path, "{expr}", StringComparison.Ordinal);
         return new PathResolution(
-            Path: string.Concat(parts),
-            Confidence: hasUnresolvedSegment ? MediumConfidence : HighConfidence,
+            Path: path,
+            Confidence: hasUnresolvedSegment
+                ? (hasLiteralContext ? MediumConfidence : LowConfidence)
+                : HighConfidence,
             Notes: notes);
     }
 
@@ -462,8 +475,12 @@ internal static class DiscoverEngine
         {
             HighConfidence => 2,
             MediumConfidence => 1,
-            _ => 0
+            LowConfidence => 0,
+            _ => -1
         };
+
+    private static PathResolution CreateLowConfidencePath() =>
+        new("{expr}", LowConfidence, [UnresolvedPathNote]);
 
     private enum BindPathSource
     {

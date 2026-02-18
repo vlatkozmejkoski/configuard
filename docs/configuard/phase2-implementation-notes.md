@@ -6,8 +6,7 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 ## Planned Next Additions (Rolling)
 
 1. Add deterministic output tests for larger multi-project layouts.
-2. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
-3. Add solution/project-level scoped discovery mode shortcuts.
+2. Add solution/project-level scoped discovery mode shortcuts.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -138,3 +137,19 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Covers another common .NET options-binding API used in production codebases.
 - Improves discovery completeness without broadening mutation risk or changing apply rules.
+
+## P2 Step 8: Add explicit `low` confidence for unresolved indirection
+
+### What I changed
+
+- Added a third confidence bucket for discovery findings:
+  - `low` when path expressions cannot be statically resolved and are represented as `{expr}`
+- Added a dedicated unresolved-indirection note:
+  - `Path is unresolved due to runtime indirection.`
+- Updated confidence ranking logic to preserve `high > medium > low`.
+- Added test coverage for unresolved identifier-based key access producing `low` confidence.
+
+### Why
+
+- Makes uncertainty explicit for dynamic access patterns instead of silently dropping them.
+- Provides better operator visibility while keeping `discover --apply` safe (high-confidence-only merge).
