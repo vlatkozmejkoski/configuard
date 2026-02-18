@@ -240,6 +240,7 @@ Currently detected pattern examples:
 - `services.Configure<T>(configuration.GetSection("A:B"))`
 - `configuration.Bind("A:B", target)`
 - `services.AddOptions<T>().Bind(configuration.GetSection("A:B"))`
+- `services.AddOptions<T>().BindConfiguration("A:B")`
 
 Discovery confidence:
 

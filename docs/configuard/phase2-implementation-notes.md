@@ -6,9 +6,8 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 ## Planned Next Additions (Rolling)
 
 1. Add deterministic output tests for larger multi-project layouts.
-2. Evaluate `BindConfiguration("A:B")` and related options-binding API variants.
-3. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
-4. Add solution/project-level scoped discovery mode shortcuts.
+2. Expand confidence levels to include explicit `low` bucket for unresolved indirection.
+3. Add solution/project-level scoped discovery mode shortcuts.
 
 ## P2 Step 1: Add read-only `discover` CLI command baseline
 
@@ -124,3 +123,18 @@ Phase 1/v1 notes remain in `docs/configuard/implementation-notes.md`.
 
 - Delivers practical Phase 2 value by reducing manual key-entry work while staying conservative.
 - Keeps mutation safety high before introducing richer auto-typing or lower-confidence apply modes.
+
+## P2 Step 7: Add `BindConfiguration("A:B")` discovery coverage
+
+### What I changed
+
+- Extended invocation matching to detect `BindConfiguration(...)` key-path usage.
+- Reused existing path-resolution logic so literal and partially composed arguments follow the same confidence semantics.
+- Added discovery tests for:
+  - baseline pattern detection includes `BindConfiguration("Options:Configured")`
+  - evidence pattern classification includes `BindConfiguration`
+
+### Why
+
+- Covers another common .NET options-binding API used in production codebases.
+- Improves discovery completeness without broadening mutation risk or changing apply rules.

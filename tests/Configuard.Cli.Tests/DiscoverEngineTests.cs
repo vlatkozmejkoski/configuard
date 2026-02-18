@@ -58,6 +58,7 @@ public sealed class DiscoverEngineTests
                 {
                     services.AddOptions<DemoOptions>().Bind(configuration.GetSection("Options:Bound"));
                     configuration.Bind("Options:Literal", options);
+                    services.AddOptions<DemoOptions>().BindConfiguration("Options:Configured");
                 }
             }
             """);
@@ -71,6 +72,7 @@ public sealed class DiscoverEngineTests
             Assert.Contains(report.Findings, finding => finding.Path == "Demo:Section");
             Assert.Contains(report.Findings, finding => finding.Path == "Options:Bound");
             Assert.Contains(report.Findings, finding => finding.Path == "Options:Literal");
+            Assert.Contains(report.Findings, finding => finding.Path == "Options:Configured");
         }
         finally
         {
@@ -134,6 +136,35 @@ public sealed class DiscoverEngineTests
             Assert.True(finding.Evidence.Count >= 2);
             Assert.Contains(finding.Evidence, evidence => evidence.Pattern == "Bind(GetSection)");
             Assert.Contains(finding.Evidence, evidence => evidence.Pattern == "Bind(literal)");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Discover_TracksBindConfigurationPatternEvidenceKind()
+    {
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "BindConfigCases.cs"), """
+            using Microsoft.Extensions.DependencyInjection;
+
+            public class BindConfigCases
+            {
+                public void Run(IServiceCollection services)
+                {
+                    services.AddOptions<DemoOptions>().BindConfiguration("A:B");
+                }
+            }
+            """);
+
+            var report = DiscoverEngine.Discover(tempDir);
+
+            var finding = Assert.Single(report.Findings, finding => finding.Path == "A:B");
+            Assert.Contains(finding.Evidence, evidence => evidence.Pattern == "BindConfiguration");
         }
         finally
         {

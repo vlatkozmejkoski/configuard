@@ -246,6 +246,21 @@ internal static class DiscoverEngine
                     symbol: GetSymbol(invocation),
                     pattern: pattern);
             }
+            else if (methodName == "BindConfiguration")
+            {
+                var keyPath = TryResolveFirstPathArgument(invocation.ArgumentList.Arguments);
+                if (keyPath is null)
+                {
+                    continue;
+                }
+
+                yield return BuildMatch(
+                    keyPath,
+                    filePath,
+                    scanRoot,
+                    symbol: GetSymbol(invocation),
+                    pattern: "BindConfiguration");
+            }
         }
     }
 
