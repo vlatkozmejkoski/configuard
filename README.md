@@ -1,259 +1,258 @@
 # Configuard
 
-Configuard is a .NET CLI for validating configuration contracts across environments before deployment.
+Configuard is a .NET CLI that validates configuration contracts across environments before deployment.
 
 > [!WARNING]
-> This project is AI-generated ("vibe-coded"). Review code, tests, and release artifacts before using in production.
+> This project is AI-generated ("vibe-coded"). Review behavior, tests, and outputs before production usage.
 
-Current focus: reliable `validate` behavior with contract-based rules and CI-friendly exit codes.
+## Table of Contents
 
-## 0.2.0 Highlights
-
-- Added optional `envSnapshot` source support with provenance-aware resolution.
-- Hardened source loading semantics with explicit hard-fail behavior for required inputs.
-- Expanded `explain --verbosity detailed` diagnostics (matched rule mode, source order, candidate paths).
-- Added CI/release automation via GitHub Actions, including NuGet publish and release artifact flow.
-- Added MIT licensing and package metadata improvements.
-
-## 0.3.0 Highlights
-
-- Expanded Phase 2 discovery with options-binding coverage:
-  - `Bind(...)` and `BindConfiguration(...)` patterns
-  - configurable scan scoping with `--include` / `--exclude`
-  - `.sln` / `.csproj` path shortcuts for discovery scope
-- Added discovery confidence grading (`high` / `medium` / `low`) with explicit uncertainty notes.
-- Added safe `discover --apply` mode (high-confidence append-only, no deletions, alias-aware dedupe).
-- Hardened deterministic discovery output behavior for repeatable CI/test workflows.
-- Added local playground bootstrap docs + script for end-to-end tool usage.
-
-## 0.2.2 Patch Highlights
-
-- Hardened contract-load semantic validation for environments, per-key source preferences, and constraints shape/bounds.
-- Added command-level input-error regression tests and a full valid-contract matrix validation test.
-- Refactored `ContractLoader` internals into focused rule validators while preserving behavior.
+- [Why Configuard](#why-configuard)
+- [Current Status](#current-status)
+- [Key Features](#key-features)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [CLI Reference](#cli-reference)
+- [Exit Codes](#exit-codes)
+- [Contract File Guide](#contract-file-guide)
+- [Discovery (Phase 2)](#discovery-phase-2)
+- [CI/CD Integration](#cicd-integration)
+- [Developing Locally](#developing-locally)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [Troubleshooting](#troubleshooting)
+- [Documentation](#documentation)
+- [License](#license)
 
 ## Why Configuard
 
-- Prevent config drift between environments.
-- Catch missing/forbidden keys before runtime.
-- Enforce type and constraint rules from a single contract file.
+Configuard helps teams:
+
+- prevent config drift between environments;
+- fail fast on missing/forbidden keys before runtime;
+- enforce type and constraint rules from a single contract file;
+- integrate config policy checks into CI with machine-readable output.
 
 ## Current Status
 
-Implemented:
+Implemented commands:
 
-- CLI command routing (`validate`, `diff`, `explain`)
-- Experimental Phase 2 discovery command (`discover`, read-only JSON report)
-- Contract loading (`configuard.contract.json`, version `1`)
-- `validate` engine for:
-  - `requiredIn`, `forbiddenIn`
-  - type checks (`string`, `int`, `number`, `bool`, `object`, `array`)
-  - constraints (`enum`, length, regex, numeric bounds, array bounds)
-  - per-key `sourcePreference` (`appsettings` / `dotenv` / `envsnapshot`)
-- Source loading from:
+- `validate`
+- `diff`
+- `explain`
+- `discover` (experimental, phase 2)
+
+Current package version in source: `0.3.0`.
+
+## Key Features
+
+- Contract-driven validation from `configuard.contract.json` (version `1`).
+- Source resolution from:
   - `appsettings.json` + `appsettings.{env}.json`
   - optional `.env` + `.env.{env}`
-  - optional environment snapshots via `sources.envSnapshot.environmentPattern`
-- Output formats for `validate`:
-  - `text` (default)
-  - `json`
-  - `sarif`
-- Unit tests for parser, loader, validator, and formatter
+  - optional environment snapshots via `envSnapshot.environmentPattern`
+- Rule checks:
+  - presence (`requiredIn`, `forbiddenIn`)
+  - type checks (`string`, `int`, `number`, `bool`, `object`, `array`)
+  - constraints (`enum`, regex, length and numeric bounds, array bounds)
+  - per-key source priority (`appsettings`, `dotenv`, `envsnapshot`)
+- Output formats:
+  - `validate`: `text`, `json`, `sarif`
+  - `diff`: `text`, `json`
+  - `explain`: `text`, `json`
+  - `discover`: `json`
+- CI-friendly deterministic behavior and explicit non-zero exit codes.
 
-In progress:
+## Requirements
 
-- Additional source types beyond current contract-defined inputs
+- .NET SDK `9.0.304` or compatible feature band (see `global.json`).
+- PowerShell (optional, for the local playground script).
 
 ## Quick Start
 
-1) Build:
+### 1) Build
 
 ```bash
 dotnet build Configuard.sln
 ```
 
-2) Run validation:
-
-```bash
-dotnet run --project src/Configuard.Cli -- validate --contract examples/quickstart/configuard.contract.json
-```
-
-3) Run tests:
-
-```bash
-dotnet test Configuard.sln
-```
-
-## Install as dotnet tool
-
-Build a local tool package:
-
-```bash
-dotnet pack src/Configuard.Cli/Configuard.Cli.csproj -c Release -o artifacts
-```
-
-Install from the local package folder:
-
-```bash
-dotnet tool install --global Configuard.Cli --add-source ./artifacts
-```
-
-Then run:
-
-```bash
-configuard --help
-configuard --version
-```
-
-Pre-release verification:
-
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File .\release-check.ps1
-```
-
-## Release automation (GitHub -> NuGet + GitHub Packages)
-
-This repository includes `.github/workflows/release.yml` to automate build/test/pack/publish.
-
-Setup:
-
-1. In GitHub repo settings, add secret `NUGET_API_KEY`.
-2. Ensure package ID ownership on NuGet (`Configuard.Cli`).
-3. GitHub Packages publish uses the workflow `GITHUB_TOKEN` (no extra secret needed).
-
-Publish via git tag:
-
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-What the workflow does:
-
-- Builds and tests in Release mode.
-- Packs the tool with version from tag (`vX.Y.Z` -> `X.Y.Z`).
-- Validates that `NUGET_API_KEY` secret is configured.
-- Validates tag/manual release version matches `Configuard.Cli.csproj` version.
-- Pushes package to NuGet.
-- Pushes package to GitHub Packages (`https://nuget.pkg.github.com/<owner>/index.json`).
-- Creates a GitHub Release with autogenerated notes and uploads the `.nupkg`.
-
-Install from GitHub Packages feed:
-
-```bash
-dotnet nuget add source "https://nuget.pkg.github.com/<owner>/index.json" --name github-configuard --username <github-username> --password <github-personal-access-token> --store-password-in-clear-text
-dotnet tool install --global Configuard.Cli --add-source "https://nuget.pkg.github.com/<owner>/index.json"
-```
-
-Manual publish trigger:
-
-- Use **Actions -> Release -> Run workflow** and provide `version` (for example `X.Y.Z`).
-
-## Continuous integration
-
-This repository includes `.github/workflows/ci.yml`:
-
-- triggers on pushes to `main` and on pull requests
-- restores, builds, and tests the solution in Release mode
-- acts as a gate before release tagging
-
-## Command Use Cases
-
-### `validate`
-
-Use case: block deployments when contract rules are violated.
+### 2) Validate with the quickstart contract
 
 ```bash
 dotnet run --project src/Configuard.Cli -- validate --contract examples/quickstart/configuard.contract.json --env staging --env production
 ```
 
-Use case: feed machine-readable output into CI tooling.
+### 3) Run tests
 
 ```bash
-dotnet run --project src/Configuard.Cli -- validate --contract examples/quickstart/configuard.contract.json --format json
+dotnet test Configuard.sln
 ```
 
-Use case: get compact output in pipelines while keeping exit semantics.
+## Installation
+
+### Option A: Run from source (recommended for contributors)
 
 ```bash
-dotnet run --project src/Configuard.Cli -- validate --contract examples/quickstart/configuard.contract.json --verbosity quiet
+dotnet run --project src/Configuard.Cli -- --help
 ```
 
-Exit codes:
+### Option B: Install as a global dotnet tool
 
-- `0`: pass
-- `2`: input/contract error
-- `3`: policy violations
-- `4`: internal error
+Install from NuGet:
 
-Warning behavior:
+```bash
+dotnet tool install --global Configuard.Cli
+configuard --help
+configuard --version
+```
 
-- Warning output fields are supported in text/json/sarif responses.
-- Warnings do **not** fail the command by themselves.
-- Non-zero exit code is driven by violations/errors, not warnings alone.
-- Invalid `sourcePreference` values are enforced at contract-load time and return input error exit code `2` (not runtime warnings).
-- Source loading failures (for example malformed JSON or missing non-optional source files) return input error exit code `2`.
-- Missing `appsettings.base` source file is treated as a hard input error.
+### Option C: Install local package from this repository
 
-Verbosity levels (all commands):
+```bash
+dotnet pack src/Configuard.Cli/Configuard.Cli.csproj -c Release -o artifacts
+dotnet tool install --global Configuard.Cli --add-source ./artifacts
+```
 
-- `quiet`: suppress command output, keep exit codes
-- `normal`: default output
-- `detailed`: include extra aggregate details for text output
+### Option D: Use a local tool manifest (repo/playground style)
+
+```bash
+dotnet new tool-manifest
+dotnet tool install Configuard.Cli --version 0.3.0
+dotnet tool run configuard --help
+```
+
+## CLI Reference
+
+### Top-level usage
+
+```text
+configuard --version
+configuard validate [--contract <path>] [--env <name>] [--format <text|json|sarif>] [--verbosity <quiet|normal|detailed>] [--no-color]
+configuard diff [--contract <path>] --env <left> --env <right> [--format <text|json>] [--verbosity <quiet|normal|detailed>] [--no-color]
+configuard explain [--contract <path>] --env <name> --key <path> [--format <text|json>] [--verbosity <quiet|normal|detailed>] [--no-color]
+configuard discover [--path <path>] [--output <path>] [--format <json>] [--verbosity <quiet|normal|detailed>] [--apply]
+```
+
+### Common options
+
+- `--contract <path>`: path to contract file (defaults to `configuard.contract.json`).
+- `--env <name>`: target environment (repeatable where supported).
+- `--format <...>`: command-specific output format.
+- `--verbosity <quiet|normal|detailed>`:
+  - `quiet`: suppress normal output (exit code only)
+  - `normal`: default behavior
+  - `detailed`: includes extra command diagnostics for text output
+- `--no-color`: accepted for compatibility/no-color scripting flow.
+
+### `validate`
+
+Validate contract compliance for one or more environments.
+
+Examples:
+
+```bash
+configuard validate --contract ./configuard.contract.json --env staging --env production
+configuard validate --contract ./configuard.contract.json --format json
+configuard validate --contract ./configuard.contract.json --format sarif
+configuard validate --contract ./configuard.contract.json --verbosity quiet
+```
 
 ### `diff`
 
-Use case: detect contract-scoped drift between two environments before deployment.
+Compare resolved contract-scoped values between exactly two environments.
+
+Examples:
 
 ```bash
-dotnet run --project src/Configuard.Cli -- diff --contract examples/quickstart/configuard.contract.json --env staging --env production
-```
-
-Use case: emit machine-readable drift details.
-
-```bash
-dotnet run --project src/Configuard.Cli -- diff --contract examples/quickstart/configuard.contract.json --env staging --env production --format json
+configuard diff --contract ./configuard.contract.json --env staging --env production
+configuard diff --contract ./configuard.contract.json --env staging --env production --format json
 ```
 
 ### `explain`
 
-Use case: explain how one key resolves and why it passes/fails policy checks.
+Explain resolution/provenance and policy evaluation for one key in one environment.
+
+Examples:
 
 ```bash
-dotnet run --project src/Configuard.Cli -- explain --contract examples/quickstart/configuard.contract.json --env production --key ConnectionStrings:Default
+configuard explain --contract ./configuard.contract.json --env production --key ConnectionStrings:Default
+configuard explain --contract ./configuard.contract.json --env production --key ConnectionStrings:Default --format json --verbosity detailed
 ```
 
-Use case: inspect the same explanation in structured JSON.
+### `discover` (experimental)
+
+Statically scans C# code for configuration key usage and emits JSON findings.
+
+Examples:
 
 ```bash
-dotnet run --project src/Configuard.Cli -- explain --contract examples/quickstart/configuard.contract.json --env production --key ConnectionStrings:Default --format json
+configuard discover --path . --format json --output discover-report.json
+configuard discover --path ./MySolution.sln --include "src/**" --exclude "**/bin/**" --exclude "**/obj/**" --output discover-report.json
+configuard discover --path . --contract ./configuard.contract.json --apply
 ```
 
-### `discover` (phase 2, experimental)
+Additional options:
 
-Use case: statically discover configuration key paths from C# code usage patterns.
+- `--path <path>` supports:
+  - directory
+  - single `.cs` file
+  - `.csproj` (scans that project directory)
+  - `.sln` (scans the solution directory)
+- `--output <path>` writes report to file instead of stdout.
+- `--include <glob>` / `--exclude <glob>` are repeatable filters.
+- `--apply` appends only high-confidence discovered keys to contract, without deleting existing keys.
 
-```bash
-dotnet run --project src/Configuard.Cli -- discover --path . --format json --output discover-report.json
+## Exit Codes
+
+- `0`: success
+- `1`: key not found in contract (`explain`)
+- `2`: input/contract/source loading error
+- `3`: policy failure (violations or diffs found)
+- `4`: unexpected internal error
+
+## Contract File Guide
+
+Default file: `configuard.contract.json`
+
+Minimal example:
+
+```json
+{
+  "version": "1",
+  "environments": ["staging", "production"],
+  "sources": {
+    "appsettings": {
+      "base": "appsettings.json",
+      "environmentPattern": "appsettings.{env}.json"
+    }
+  },
+  "keys": [
+    {
+      "path": "ConnectionStrings:Default",
+      "type": "string",
+      "requiredIn": ["staging", "production"]
+    },
+    {
+      "path": "Features:UseMockPayments",
+      "type": "bool",
+      "forbiddenIn": ["production"]
+    }
+  ]
+}
 ```
 
-Safe apply mode (high-confidence additions only, no deletions):
+Validation notes:
 
-```bash
-dotnet run --project src/Configuard.Cli -- discover --path . --contract configuard.contract.json --apply
-```
+- `environments` and `keys` must be non-empty.
+- `type` must be one of the supported primitive types.
+- `requiredIn`/`forbiddenIn` must only reference declared environments.
+- `sourcePreference` values are restricted to `appsettings`, `dotenv`, `envsnapshot`.
+- Contract and source parsing problems return exit code `2` (hard input error).
 
-Scope control:
+## Discovery (Phase 2)
 
-```bash
-dotnet run --project src/Configuard.Cli -- discover --path . --include "src/**" --exclude "**/obj/**" --exclude "**/bin/**" --output discover-report.json
-```
-
-`--include` / `--exclude` use simple glob-style patterns against scan-relative file paths.
-`--apply` appends only high-confidence discovered keys that do not already match an existing key path or alias.
-`--path` accepts a directory, a single `.cs` file, a `.csproj` (scans that project directory), or a `.sln` (scans the solution directory).
-
-Currently detected pattern examples:
+Discovery currently detects patterns such as:
 
 - `configuration["A:B"]`
 - `configuration.GetValue<T>("A:B")`
@@ -263,15 +262,63 @@ Currently detected pattern examples:
 - `services.AddOptions<T>().Bind(configuration.GetSection("A:B"))`
 - `services.AddOptions<T>().BindConfiguration("A:B")`
 
-Discovery confidence:
+Confidence levels:
 
-- `high`: fully literal path discovery.
-- `medium`: partially composed expression with unresolved dynamic segments (annotated with notes in report).
-- `low`: unresolved runtime indirection (path placeholder only, annotated with notes in report).
+- `high`: fully literal path
+- `medium`: partially dynamic path (for example `Api:{expr}`)
+- `low`: unresolved runtime indirection (`{expr}`)
 
-## Local Playground Example
+Safe apply behavior (`discover --apply`):
 
-Use `examples/local-playground` to quickly try the tool in a throwaway solution:
+- adds only `high` confidence findings;
+- does not remove existing keys;
+- de-duplicates against existing key paths and aliases.
+
+## CI/CD Integration
+
+### Continuous integration
+
+The repository includes `.github/workflows/ci.yml`:
+
+- triggers on pushes to `main` and pull requests;
+- restores, builds, and tests in Release mode.
+
+### Release automation
+
+The repository includes `.github/workflows/release.yml`:
+
+- runs on tag push `v*.*.*` or manual dispatch;
+- validates package metadata and version consistency;
+- packs `Configuard.Cli`;
+- publishes to NuGet and GitHub Packages;
+- creates a GitHub Release and attaches `.nupkg`.
+
+Release flow:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+## Developing Locally
+
+Typical contributor flow:
+
+```bash
+dotnet restore Configuard.sln
+dotnet build Configuard.sln -c Release
+dotnet test Configuard.sln -c Release
+```
+
+Pre-release checks:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\release-check.ps1
+```
+
+### Local playground
+
+You can bootstrap a disposable sample solution:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\examples\local-playground\create-sample-solution.ps1 -Root .\playground
@@ -280,45 +327,44 @@ dotnet tool run configuard validate --contract .\configuard.contract.json --env 
 dotnet tool run configuard discover --path .\Playground.sln --format json --output .\discover-report.json
 ```
 
-Full walkthrough: `examples/local-playground/README.md`.
-
-Deterministic report behavior:
-
-- Findings and evidence are emitted in stable sorted order for repeatable output.
-- `generatedAtUtc` is sourced via an internal clock provider seam to support deterministic tests.
-
-## Contract File
-
-Default contract path: `configuard.contract.json`
-
-Reference docs:
-
-- `docs/configuard/02-contract-format.md`
-- `docs/configuard/03-cli-ux.md`
-- `docs/configuard/04-mvp-boundaries.md`
+See `examples/local-playground/README.md` for full walkthrough.
 
 ## Project Structure
 
 ```text
-docs/configuard/
-  01-competitor-matrix.md
-  02-contract-format.md
-  03-cli-ux.md
-  04-mvp-boundaries.md
-  05-phase2-roslyn.md
-  implementation-notes.md
-
-src/Configuard.Cli/
-  Cli/
-  Validation/
-
-tests/Configuard.Cli.Tests/
-
-examples/quickstart/
-  configuard.contract.json
-  appsettings.json
-  appsettings.production.json
+src/Configuard.Cli/            # CLI app and core command/validation/discovery logic
+tests/Configuard.Cli.Tests/    # unit tests
+examples/quickstart/           # small contract + sample appsettings files
+examples/local-playground/     # end-to-end local sandbox bootstrap script
+docs/configuard/               # design docs and implementation notes
+.github/workflows/             # CI and release automation
 ```
+
+## Contributing
+
+Contributions are welcome.
+
+- Start with `CONTRIBUTING.md` for contributor workflow, testing requirements, and PR checklist.
+- Use `general-issue.yml` in `.github/ISSUE_TEMPLATE/` when opening issues.
+
+## Troubleshooting
+
+### Input errors with exit code `2`
+
+Common causes:
+
+- missing `appsettings.base` file;
+- malformed JSON source file;
+- invalid contract structure (unknown sourcePreference/type/constraint shape);
+- source path escaping outside contract directory.
+
+## Documentation
+
+- `docs/configuard/02-contract-format.md` - contract schema and semantics.
+- `docs/configuard/03-cli-ux.md` - CLI behavior and output goals.
+- `docs/configuard/04-mvp-boundaries.md` - scope boundaries.
+- `docs/configuard/05-phase2-roslyn.md` - discovery implementation notes.
+- `docs/configuard/phase2-implementation-notes.md` - phase 2 details.
 
 ## License
 

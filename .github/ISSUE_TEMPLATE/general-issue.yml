@@ -1,0 +1,43 @@
+name: General issue
+description: Human-oriented issue template for bugs, docs, and small improvements
+title: "[Issue]: "
+labels:
+  - status:triage
+body:
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Type
+      options:
+        - bug
+        - docs
+        - enhancement
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise summary of the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction / context
+      description: Steps to reproduce (for bugs) or context (for enhancements/docs).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, environment, or related links.
+    validations:
+      required: false

@@ -5,3 +5,4 @@ artifacts/
 TestResults/
 *.user
 *.suo
+playground/
